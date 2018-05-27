@@ -1,0 +1,48 @@
+{
+  "keys": [
+    {
+      "rank": 20,
+      "key": "leiche",
+      "decomb": [
+        {
+          "pattern": "* wo kann ich eine leiche vestecken *",
+          "reasemb": [
+            "Versuch es mal im Garten.",
+            "In Slybotones Kofferaum!",
+            "Im Krötenteich."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 20,
+      "key": "tag",
+      "decomb": [
+        {
+          "pattern": "* welchen tag * heute *",
+          "reasemb": [
+            "goto #day"
+          ]
+        },
+        {
+          "pattern": "tag",
+          "reasemb": [
+            "Tach auch..."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 20,
+      "key": "datum",
+      "decomb": [
+        {
+          "pattern": "* welches datum * heute *",
+          "reasemb": [
+            "goto #date"
+          ]
+        }
+      ]
+    }
+  ]
+}

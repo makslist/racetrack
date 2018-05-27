@@ -1,0 +1,21 @@
+{
+  "keys": [
+    {
+      "rank": 50,
+      "key": "#ansprechen",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Was machen wir hier eigentlich?",
+            "Die Tankstelle nebenan hat noch offen. Wollen wir weiterziehen?",
+            "Wenn ich dir bis nach Hause nachlaufe, behältst du mich dann?",
+            "Kenne ich dich aus der Werbung?",
+            "Ich habe lange überlegt, wie ich es dir sagen soll. Ich weiß es einfach nicht. Ist wohl besser, ich behalte es für mich.",
+            "Schau mal, ich kann tanzen wie John Travolta."
+          ]
+        }
+      ]
+    }
+  ]
+}

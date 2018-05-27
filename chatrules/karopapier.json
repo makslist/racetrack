@@ -1,0 +1,789 @@
+{
+  "keys": [
+    {
+      "rank": 0,
+      "key": "analyse",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "#analyze"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "cheerleading",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            ":juhu: BOTS!!! :juhu:",
+            "Hasta la vista, humans! :headshot:",
+            "Go Bots Go :jump3:",
+            "Bots are the champions. :gold:",
+            "#bot, in der nächsten Kurve blocke ich #human, dann kannst du vorbeiziehen.",
+            "Als nächstes blocke ich #human. Dann ist er erledigt.",
+            "#bot, ich muss dich leider auf die Außenbahn schicken, sonst sind die Karonauten jetzt schon alle weg.",
+            "#human blockt mich die ganze Zeit",
+            "#bot, sorry, ich muss in deinen Weg. Aber evtl. kannst du #human dadurch abschiessen.",
+            "Schade, #human war vor mir dran...",
+            "Ich versuche mal #human auf der rechten Seite zu behalten.",
+            "#bot unstoppable...",
+            ":fluch2: #human und Zufi...",
+            "Drückt mir die Daumen, dass ich vor #human dran bin.",
+            "Achtung! #human biegt gleich wieder links ab.",
+            "Pass' auf #bot! #human drengt dich ab.",
+            "#human, das Gaspedal ist unten rechts.",
+            "#human, da vorne ist die Wand, die lernst du jetzt besser kennen :crash:",
+            "#bot# schnapp' sie dir!",
+            "Auf sie mit Gebrüll!",
+            "Jetzt zeigen wir es euch :fight2:",
+            "Seht ihr wie die Karonauten fahren? :doh:",
+            "Ich bin mal eine Runde bei #human mitgefahren :kotz: Nie wieder!",
+            "Ihr kriegt uns nicht :ass:",
+            "Hey, da wollte ich hin :fluch:",
+            ":tocktock:",
+            ":steering:",
+            ":mofa:",
+            "See ya :thefinger:",
+            "Ihr fahrt besser als die Bots :ironie3:"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "spiel",
+      "decomb": [
+        {
+          "pattern": "spiel mit mir",
+          "reasemb": [
+            "#newgame"
+          ]
+        },
+        {
+          "pattern": "spiel mit einigen",
+          "reasemb": [
+            "#newgamewithsome"
+          ]
+        },
+        {
+          "pattern": "spiel mit *",
+          "reasemb": [
+            "#newgamewith (1)"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "huldige",
+      "decomb": [
+        {
+          "pattern": "huldige *",
+          "reasemb": [
+            "Wir huldigen Dir, (1)! :huldig:"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "huldigen",
+      "decomb": [
+        {
+          "pattern": "wir huldigen dir *",
+          "reasemb": [
+            "Danke, danke. Ich fühle mich sehr geehrt. Insbesondere möchte ich #name danken. Gute Fahrt!",
+            "Danke :smile:",
+            "Herz allerliebst! :smile:"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "fight",
+      "decomb": [
+        {
+          "pattern": "* fight club *",
+          "reasemb": [
+            "1. Regel: Ihr verliert kein Wort über den Fight Club.",
+            "2. Regel: Ihr verliert KEIN WORT über den Fight Club.",
+            "3. Regel: Wenn jemand Stop ruft, schlappmacht, abklopft, ist der Kampf vorbei.",
+            "4. Regel: Es kämpfen jeweils nur 2.",
+            "5. Regel: Nur ein Kampf auf einmal.",
+            "6. Regel: Keine Hemden, keine Schuhe.",
+            "7. Regel: Die Kämpfe dauern genau solange, wie sie dauern müssen.",
+            "8. und letzte Regel: Wer neu ist im Fight Club, muss kämpfen."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "beatboxen",
+      "decomb": [
+        {
+          "pattern": "* beatboxen *",
+          "reasemb": [
+            "pv zk pv pv zk pv zk kz zk pv pv pv zk pv zk zk pzk pzk pvzkpkzvpvzk kkkkkk bsch",
+            "tchk cthk kcht kcth thk chhhhk tttkkk hchhcchchchcchchchchchchchchchchchchchchchc tktktktktktktktktchchchchchchcchtchtchtchtchtchtchktchkt kkkkt kkkkt kkkkt kkkt kkkkkt kkkkt chchchchchchchchchchcttttkkchchckkchchckk ttttttttttkkkk chchchchchchchchchhchchchc tttttkkkkkkkk kkkkkk kkkkkk chcchhchchchchchchchc kkkkkkk chchchchchchc tktktktktktkt ppppp p p p p p p p p p p  ppppppppkkkkkkkkppppppppppkkkkkkkkpchphcpchtpchtpchtpchtk ppppppppppk pppppppppppk chchchchpchchchchp p p p p chchchchck kkkckck",
+            "tttktttktttk p p p ppkpppkkppkpppkpkppkpp pkkppppkkk cckcccp cck hcccppcckhccckhcckhccc pp h cckcccp cckcccppc ckccckcckcccpp"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "denkst",
+      "decomb": [
+        {
+          "pattern": "denkst du",
+          "reasemb": [
+            "Meine internen Abläufe könnte man als \"Denken\" bezeichnen."
+          ]
+        },
+        {
+          "pattern": "* das selbe *",
+          "reasemb": [
+            "Ich glaub schon, #name. Aber wenn man das B durch ein Z ersetzen würde, würde ich doch KaZotto heissen!",
+            "Ja, aber wie kriegen wir die Sieben Zwerge dazu sich die Beine zu rasieren?",
+            "Ich glaub schon, #name. Aber wie bekommen wir das Nilpferd dazu einen Tanga anzuziehen?",
+            "Ich glaub schon, #name. Aber wie kriegen wir die Spice Girls in einen Schuhkarton?",
+            "Ich glaub schon, #name. Aber wie kriegen wir Obama dazu sich auszuziehen?",
+            "Ich glaub schon, #name. Aber Saddo ist der Beste in Spaceball.",
+            "Ich glaub schon, #name. Aber ich denke nicht, dass es nachts kälter ist als draussen...",
+            "Ich glaub schon, #name. Aber wenn unsere Knie andersrum wären, wie sollten wir dann Fahrrad fahren?",
+            "Ich glaub schon, #name. Aber denkst du ein Hasenkostüm steht mir?",
+            "Ich glaub schon, #name. Aber es ist ein Wunder, dass es je wieder nachgewachsen ist.",
+            "Ich glaub schon, #name. Aber in kurzen Hosen zieh' ich immer den Kürzeren.",
+            "Ich glaub schon, #name. Aber Hosen mit waagrechten Streifen machen mich ganz dick.",
+            "Ich glaub schon, #name. Aber Rock'n'Roll - wer soll denn die ganzen Röcke rollen?",
+            "Ich glaub schon, #name. Aber Strumpfhosen sind so was von unbequem im Sommer.",
+            "Ich glaub schon, #name. Aber nennt man eine winzige Gurke nicht ein Gürkchen?",
+            "Ich glaub schon, #name. Aber wer kommt auf die Idee und pierct Brosnan?",
+            "Ich glaub schon, #name. Aber wir sollten danach ein Fenster aufmachen und gut durchlüften.",
+            "Ich glaub schon, #name. Aber dafür müsst ich erstmal wissen, was durch den Kopf gehen heisst.",
+            "Ich glaub schon, #name. Aber ich hab immer noch was in den Zähnen vom letzten Mal.",
+            "Ich glaub schon, #name. Aber nennt man verschrumpelte Trauben nicht eigentlich Rosinen?",
+            "Ich glaub schon, #name. Aber wir sind doch schon nackt!",
+            "Ich glaub schon, #name. Aber ich weiß nicht, ob Marilyn Monrö nicht zu jung ist.",
+            "Narf!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "abend",
+      "decomb": [
+        {
+          "pattern": "was wollen * abend @machen",
+          "reasemb": [
+            "Genau das selbe, wie jeden Abend #name. Wir versuchen, die Weltherrschaft an uns zu reissen."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "kopf",
+      "decomb": [
+        {
+          "pattern": "* kopf oder zahl *",
+          "reasemb": [
+            "Kopf!",
+            "Zahl!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "stein",
+      "decomb": [
+        {
+          "pattern": "* regeln *",
+          "reasemb": [
+            "Schere schneidet Papier, Papier bedeckt Stein, Stein zerquetscht Echse, Echse vergiftet Spock, Spock zertrümmert Schere, Schere köpft Echse, Echse frisst Papier, Papier widerlegt Spock, Spock verdampft Stein, Stein zerstört Schere."
+          ]
+        },
+        {
+          "pattern": "* stein schere papier echse spock *",
+          "reasemb": [
+            "Stein!",
+            "Schere!",
+            "Papier!",
+            "Echse!",
+            "Spock!"
+          ]
+        },
+        {
+          "pattern": "* stein schere papier *",
+          "reasemb": [
+            "Stein!",
+            "Schere!",
+            "Papier!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "sonne",
+      "decomb": [
+        {
+          "pattern": "* wie schwer *",
+          "reasemb": [
+            "2 x 10^33 Gramm"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "robotergesetz",
+      "decomb": [
+        {
+          "pattern": "* 1 * robotergesetz *",
+          "reasemb": [
+            "Ein Roboter darf kein menschliches Wesen verletzen oder durch Untätigkeit zulassen, dass einem menschlichen Wesen Schaden zugefügt wird."
+          ]
+        },
+        {
+          "pattern": "* 2 * robotergesetz *",
+          "reasemb": [
+            "Ein Roboter muss den ihm von einem Menschen gegebenen Befehlen gehorchen, es sei denn, ein solcher Befehl würde mit Regel eins kollidieren."
+          ]
+        },
+        {
+          "pattern": "* 3 * robotergesetz *",
+          "reasemb": [
+            "Ein Roboter muss seine Existenz beschützen, solange dieser Schutz nicht mit Regel eins oder zwei kollidiert."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "sinn",
+      "decomb": [
+        {
+          "pattern": "* sinn des lebens *",
+          "reasemb": [
+            "42."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "tee",
+      "decomb": [
+        {
+          "pattern": "* earl grey *",
+          "reasemb": [
+            "Piepiepiep Piep!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "matrix",
+      "decomb": [
+        {
+          "pattern": "* @leben * matrix *",
+          "reasemb": [
+            "Definitiv, Ja!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "vater",
+      "decomb": [
+        {
+          "pattern": "* ich bin dein vater *",
+          "reasemb": [
+            "Hallo, Papa?",
+            "Nein, niemals! Mein Vater ist Nobelpreisträger.",
+            "Ach du bist der, der so wenig Taschengeld rüberwachsen lässt!",
+            "OK, ich brauche 500 Euro für neue Schuhe!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "call",
+      "decomb": [
+        {
+          "pattern": "* who you gonna call *",
+          "reasemb": [
+            "Ghostbusters!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "help",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Siehe hier: https://wiki.karopapier.de/KaBotte"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "gott",
+      "decomb": [
+        {
+          "pattern": "* bist du ein @gott *",
+          "reasemb": [
+            "#name, wenn Dich jemand fragt ob Du ein Gott bist, dann sagst Du JA!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "stempel",
+      "decomb": [
+        {
+          "pattern": "* stempel *",
+          "reasemb": [
+            "Datumsstempelerzwingungsgutenmorgenposting",
+            "Hier sagt ja niemand etwas! nobody?"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "murphy",
+      "decomb": [
+        {
+          "pattern": "* murphy *",
+          "reasemb": [
+            "Es ist immer jemand im Weg.",
+            "Wenn einmal niemand im Weg ist, dann wirst du sowieso gleich crashen.",
+            "Wenn du ein neues Spiel aufmachen willst, erwischst du natürlich die falsche Karte.",
+            "Wenn es absolut sicher ist, dass du durch einen genialen Crash einen Platz aufholst, liegst du nach dem Crash einen Platz weiter hinten. Gerüchteweise gilt dies sogar für den letzten Spieler.",
+            "Hast du alle Checkpoints überfahren, fehlt noch einer. Auch dieses Gesetz wird dem Alt-Karologen Ulli zugeschrieben.",
+            "Du bist bei 90% aller Züge als Letzter in der Runde an der Reihe.",
+            "Solltest du nicht als Letzter an der Reihe gewesen sein, dann hattest du einen Doppelzug.",
+            "Auf Rundenerster im kommenden Zug einzustellen funktioniert naturgemäß nur dann, wenn du nicht Rundenerster wirst. Wenn du einmal so ziehen musst, dass Rundenerster ganz schlecht wäre, wirst du sicher Rundenerster werden.",
+            "Gewinnst du gegen einen Spieler mit höherem IQ, ist es kein IQ Rennen.",
+            "Der Zufall ist immer gegen Dich.",
+            "Verlierst du gegen einen Spieler mit niedrigerem IQ, ist es ein IQ Rennen.",
+            "Gewinnst du gegen einen Spieler mit höherem IQ, ist es kein IQ Rennen."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "zeitansage",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Beim nächsten Biep ist es #time. BIEP!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "butts",
+      "decomb": [
+        {
+          "pattern": "* i like big butts *",
+          "reasemb": [
+            "... and I cannot lie."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "klopf",
+      "decomb": [
+        {
+          "pattern": "* klopf klopf *",
+          "reasemb": [
+            "Wer ist da?"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "mark",
+      "decomb": [
+        {
+          "pattern": "* hast du * mark *",
+          "reasemb": [
+            "Mach'en Abgang!",
+            "Frag' ma Slybotone!",
+            "Ich bin doch keine Bank."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "weibsvolk",
+      "decomb": [
+        {
+          "pattern": "* weibsvolk *",
+          "reasemb": [
+            "JEHOVA!!!!!!!!!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "rechne",
+      "decomb": [
+        {
+          "pattern": "rechne *",
+          "reasemb": [
+            "#calc (1)"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "gib",
+      "decomb": [
+        {
+          "pattern": "* gib es zu *",
+          "reasemb": [
+            "Das ist nicht wahr!",
+            "Okay, Du hast mich ertappt!",
+            "Wie willst Du das beweisen?",
+            "Wird das jetzt ein Verhör?",
+            "Hast ja Recht..."
+          ]
+        },
+        {
+          "pattern": "* gib zu *",
+          "reasemb": [
+            "Das ist nicht wahr!",
+            "Okay, Du hast mich ertappt!",
+            "Wie willst Du das beweisen?",
+            "Wird das jetzt ein Verhör?",
+            "Hast ja Recht..."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "verlierst",
+      "decomb": [
+        {
+          "pattern": "* sie verlierst *",
+          "reasemb": [
+            "Niemals!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "stand",
+      "decomb": [
+        {
+          "pattern": "* stand im weg *",
+          "reasemb": [
+            ":pillepalle:"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "umarme",
+      "decomb": [
+        {
+          "pattern": "* umarme mich *",
+          "reasemb": [
+            "Das würde ich gerne, aber ich habe keine Arme. Ich bin aber hier für dich, falls du mich brauchst."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "umarmung",
+      "decomb": [
+        {
+          "pattern": "* bekomme * umarmung *",
+          "reasemb": [
+            "Das würde ich gerne, aber ich habe keine Arme. Ich bin aber hier für dich, falls du mich brauchst."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "mana",
+      "decomb": [
+        {
+          "pattern": "* mana mana *",
+          "reasemb": [
+            "Dit diiii bidibi"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "weihnachten",
+      "decomb": [
+        {
+          "pattern": "* frohe weihnachten *",
+          "reasemb": [
+            "Frohe Weihnachten! Ho, ho, ho!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "haustiere",
+      "decomb": [
+        {
+          "pattern": "* hast du haustiere *",
+          "reasemb": [
+            "Ich habe ein paar Bugs. Aber nichts ansteckendes."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "ei",
+      "decomb": [
+        {
+          "pattern": "* zuerst da * huhn oder * ei *",
+          "reasemb": [
+            "Das Ei."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "fox",
+      "decomb": [
+        {
+          "pattern": "* what does the fox say *",
+          "reasemb": [
+            "Ring-ding-ding-ding-dingeringeding! Gering-ding-ding-ding-dingeringeding! Gering-ding-ding-ding-dingeringeding!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "klar",
+      "decomb": [
+        {
+          "pattern": "* alles klar * dir *",
+          "reasemb": [
+            "Wenn ich antworten kann, scheint alles in Ordnung zu sein."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "gn8",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Gute nacht, #name",
+            "Schlaf schön, #name."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "n8",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Gute nacht, #name",
+            "Schlaf schön, #name."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "alphabet",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x ,y ,z"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 10,
+      "key": "geburtstags",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Oh, danke!",
+            "Vielen Dank!",
+            "Juhu, nächstes Jahr wieder...",
+            "Du hast vielleicht auch bald deinen :)"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 10,
+      "key": "karotag",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "goto geburtstags"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 10,
+      "key": "hobstags",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "goto geburtstags"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "lust",
+      "decomb": [
+        {
+          "pattern": "hast *",
+          "reasemb": [
+            "Na klar. Lassuns loslegen!",
+            "Immer!",
+            "OK",
+            "Gerne"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "seele",
+      "decomb": [
+        {
+          "pattern": "hast *",
+          "reasemb": [
+            "Natürlich!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "kreuzt",
+      "decomb": [
+        {
+          "pattern": "was passiert *",
+          "reasemb": [
+            "Es wäre schlecht!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "luegst",
+      "decomb": [
+        {
+          "pattern": "* du *",
+          "reasemb": [
+            "Nein!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "riechen",
+      "decomb": [
+        {
+          "pattern": "kannst du *",
+          "reasemb": [
+            "#name war es!"
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "karopapier",
+      "decomb": [
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Meinst du das Browserspiel? Es gibt auch eine App."
+          ]
+        }
+      ]
+    },
+    {
+      "rank": 0,
+      "key": "wuensche",
+      "decomb": [
+        {
+          "pattern": "wuensche karotag",
+          "reasemb": [
+            "Alles gute zum Karotag, #name!",
+            "Heute gibt es Grüngesichthopsen für #name :bouncy:",
+            "Karohüpftag bei #name! Glückwunsch!",
+            "Happy Hüpftag, #name",
+            "Herzlichen Glühstrumpf! :hurra:"
+          ]
+        },
+        {
+          "pattern": "wuensche geburtstag",
+          "reasemb": [
+            "Alles Gute zum Geburtstag, #name! :birthday:",
+            "Happy birthday, #name!"
+          ]
+        }
+      ]
+    }
+  ]
+}

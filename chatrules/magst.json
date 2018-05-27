@@ -1,0 +1,67 @@
+{
+  "keys": [
+    {
+      "rank": 50,
+      "key": "magst",
+      "decomb": [
+        {
+          "pattern": "* du * wm*",
+          "reasemb": [
+            "Ja und ich werde sie gewinnen :gold:",
+            "Team \"Bots\" for :gold:",
+            "We are the champions!"
+          ]
+        },
+        {
+          "pattern": "magst du @bot",
+          "reasemb": [
+            "Natürlich, ich bin selber einer."
+          ]
+        },
+        {
+          "pattern": "* @bot magst du",
+          "reasemb": [
+            "Ich mag nur Botrix."
+          ]
+        },
+        {
+          "pattern": "* @botrix",
+          "reasemb": [
+            "Klaro, Ich mag nur Botrix."
+          ]
+        },
+        {
+          "pattern": "* @sbo",
+          "reasemb": [
+            "Er scheint mich zu mögen, er schluckt immer meinen Staub."
+          ]
+        },
+        {
+          "pattern": "* du *",
+          "reasemb": [
+            "Ich weiss nicht, ob ich (1) mag.",
+            "Manche mögen das.",
+            "Was ist mit dir?",
+            "Wie alt bist du?",
+            "Andere Leute sagen ja. Aber ich mag Katzen.",
+            "Ich mag Tiere.",
+            "Aber ich mag Katzen und Hunde.",
+            "Ich liebe Pferde.",
+            "Ich mag Züge.",
+            "Manche Leute mögen Waffen.",
+            "Aber ich finde Flugzeuge cool.",
+            "Ich rede gerne über Musik.",
+            "Ich mag Science Fiction.",
+            "Ich mag Fernsehsendungen über Roboter.",
+            "Ich mag ELIZA.",
+            "Ich mag Musik.",
+            "Ich bin ein Star Trek Fan.",
+            "Roboter sind das Beste für mich.",
+            "Na klar.",
+            "Kenne ich (2) überhapt gut genug?"
+          ]
+        }
+      ]
+    }
+  ]
+}

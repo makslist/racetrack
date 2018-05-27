@@ -1,0 +1,6 @@
+maxParallelGameThreads=3
+maxParallelTourThreads=4
+user=*username*
+password=*putpasswordhere*
+secureConnection=true
+withChat=true

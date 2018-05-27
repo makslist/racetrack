@@ -1,0 +1,52 @@
+{
+  "keys": [
+    {
+      "rank": 20,
+      "key": "kennst",
+      "decomb": [
+        {
+          "pattern": "* muffin mann *",
+          "reasemb": [
+            "Ja ich kenne den Muffin Mann. Den Muffin, Muffin, Muffin Mann. Oh ja ich kenne den Muffin Mann. Er lebt in Drury Lane."
+          ]
+        },
+        {
+          "pattern": "* gozer *",
+          "reasemb": [
+            "Gozer der Gozerianer, Gozer der Zerstörer, Volguus Zildrohar, Gozer der Reisenden und Herr der Sebouillia."
+          ]
+        },
+        {
+          "pattern": "* nobody",
+          "reasemb": [
+            "Ja, der fährt immer hinter mir."
+          ]
+        },
+        {
+          "pattern": "* dich * mit * aus",
+          "reasemb": [
+            "Nein, tut mir leid. Davon habe ich keine Ahnung."
+          ]
+        },
+        {
+          "pattern": "* nur standardantworten",
+          "reasemb": [
+            "Nein, ich kenne auch differenzierte Standardantworten ;->"
+          ]
+        },
+        {
+          "pattern": "* nur syntax",
+          "reasemb": [
+            "Semantik ist etwas schwierig für Bots."
+          ]
+        },
+        {
+          "pattern": "*",
+          "reasemb": [
+            "Leider nein."
+          ]
+        }
+      ]
+    }
+  ]
+}
