@@ -240,7 +240,7 @@ public class BotRunner implements Runnable {
     };
   }
 
-  private long computeDelaySeconds(int targetHour, int targetMin, int targetSec) {
+  protected long computeDelaySeconds(int targetHour, int targetMin, int targetSec) {
     LocalDateTime localNow = LocalDateTime.now(ZoneId.of("CET"));
     ZonedDateTime zonedNow = ZonedDateTime.of(localNow, ZoneId.of("CET"));
     ZonedDateTime zonedNextTarget = zonedNow.withHour(targetHour).withMinute(targetMin).withSecond(targetSec);

@@ -163,8 +163,38 @@ public class Starter {
         runMapalysor(analyzeMaps, mapScale, direction);
       }
     } else {
-      System.out.println("No start command set. Please provide parameters: e.g. -" + Param.ANALYZE.toString() + " or -"
-          + Param.MAPALYZE.toString() + ".");
+      StringBuilder help = new StringBuilder("No start command set. Please provide parameters:").append("\n\n");
+      help.append("-").append(Param.BOT.toString()).append("\t\t\t\t\t").append("Starts the bot").append("\n");
+      help.append("\t-").append(Param.PROP.toString()).append(":file.prop").append("\t\t\t")
+          .append("Provide a property file with settings for the bot").append("\n\n");
+
+      help.append("-").append(Param.GUI.toString()).append("\t\t\t\t\t").append("Starts in GUI mode").append("\n");
+      help.append("\t-").append(Param.PROP.toString()).append(":file.prop").append("\t\t\t")
+          .append("Provide a property file with settings for the bot").append("\n\n");
+
+      help.append("-").append(Param.ANALYZE.toString()).append(":(gameId[(;|/)gameId])").append("\t\t")
+          .append("Game-Analyzer").append("\n\n");
+      help.append("-").append(Param.MAPALYZE.toString()).append(":(mapId[(;|/)map.json])").append("\t\t")
+          .append("Map-Analyzer").append("\n");
+      help.append("\t\t\t\t\t").append("For json files, provide relative path to map-file from jar)").append("\n");
+      help.append("\t-").append(Param.DIR.toString()).append(":[").append(Dir.classic).append("|").append(Dir.formula1)
+          .append("|").append(Dir.free).append("]").append("\t").append("The direction to analyze the map")
+          .append("\n");
+      help.append("\t-").append(Param.MAPSCALE.toString()).append(":(8-64)").append("\t\t")
+          .append("Set the size of a tile (in pixel) in the picture of the map").append("\n\n");
+
+      help.append("Possible properties to set are:").append("\n");
+      help.append("\t").append("maxParallelGameThreads").append("\t\tOnly in bot mode").append("\n");
+      help.append("\t").append("withChat=(true|false)").append("\t\tStart a chatbot (only in bot mode)").append("\n");
+      help.append("\t").append("maxParallelTourThreads").append("\t\t")
+          .append("Max number of threads to actually calculate the distance of the shortes tour.").append("\n");
+      help.append("\t\t\t\t\t")
+          .append("on multi-processor platforms set this to #cores (or #cores-1 to keep the computer responsive")
+          .append("\n");
+      help.append("\t").append("user").append("\t\t\t\t").append("Login for bot or gui").append("\n");
+      help.append("\t").append("password").append("\t\t\t").append("Password for login").append("\n");
+      help.append("\t").append("secureConnection=(true|false)").append("\t").append("Use encrypted connection");
+      System.out.print(help);
     }
   }
 

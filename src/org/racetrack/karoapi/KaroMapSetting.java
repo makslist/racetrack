@@ -65,7 +65,7 @@ public class KaroMapSetting {
   private File file;
   private Boolean circuit;
   private int maxTours = -1;
-  private Boolean quit;
+  private Boolean quit; // marks map as innavigable and leads to quitting a game on this map
   private double pathWeightPow = Double.NaN;
   private int pathSuccCountMod = -1;
   private boolean set;

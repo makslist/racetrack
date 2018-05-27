@@ -398,7 +398,7 @@ public class KaroMap {
         }
       }
       tileMoves.removeAll(cluster);
-      if (isNeighborTilesDriveable(cluster)) {
+      if (isNeighborTilesInnavigable(cluster)) {
         clusters.add(cluster);
       }
     }
@@ -406,7 +406,7 @@ public class KaroMap {
     return clusters.size() == 1;
   }
 
-  private boolean isNeighborTilesDriveable(Collection<Move> moves) {
+  private boolean isNeighborTilesInnavigable(Collection<Move> moves) {
     for (Move move : moves) {
       for (int i = -1; i <= 1; i++) {
         for (int j = -1; j <= 1; j++) {
