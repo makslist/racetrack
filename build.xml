@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="create_run_jar" name="Create Runnable Jar for Project Racetrack with Jar-in-Jar Loader">
+    <!--this file was created by Eclipse Runnable JAR file Export Wizard-->
+    <!--ANT 1.7 is required-->
+    <!--define folder properties-->
+    <property name="dir.buildfile" value="."/>
+    <property name="dir.workspace" value="${dir.buildfile}/.."/>
+    <property name="dir.jarfile" value="D:/racetrack"/>
+    <target name="create_run_jar">
+        <jar destfile="${dir.jarfile}/Racetrack.jar">
+            <manifest>
+                <attribute name="Main-Class" value="org.eclipse.jdt.internal.jarinjarloader.JarRsrcLoader"/>
+                <attribute name="Rsrc-Main-Class" value="org.racetrack.Starter"/>
+                <attribute name="Class-Path" value="."/>
+                <attribute name="Rsrc-Class-Path" value="./ json-20180130.jar eclipse-collections-9.2.0.jar eclipse-collections-api-9.2.0.jar Java-WebSocket-1.3.8.jar"/>
+            </manifest>
+            <zipfileset src="jar-in-jar-loader.zip"/>
+            <fileset dir="${dir.buildfile}/target/classes"/>
+            <zipfileset dir="C:/Users/Markus/.m2/repository/org/json/json/20180130" includes="json-20180130.jar"/>
+            <zipfileset dir="C:/Users/Markus/.m2/repository/org/eclipse/collections/eclipse-collections/9.2.0" includes="eclipse-collections-9.2.0.jar"/>
+            <zipfileset dir="C:/Users/Markus/.m2/repository/org/eclipse/collections/eclipse-collections-api/9.2.0" includes="eclipse-collections-api-9.2.0.jar"/>
+            <zipfileset dir="C:/Users/Markus/.m2/repository/org/java-websocket/Java-WebSocket/1.3.8" includes="Java-WebSocket-1.3.8.jar"/>
+        </jar>
+    </target>
+</project>

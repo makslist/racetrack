@@ -13,22 +13,14 @@ import org.eclipse.collections.api.set.primitive.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.factory.primitive.*;
 import org.eclipse.collections.impl.list.mutable.*;
+import org.eclipse.collections.impl.map.mutable.primitive.*;
 import org.racetrack.karoapi.*;
 
 public class Paths {
 
-  private static final int MAX_LEVEL_WEIGHT = 100;
-
-  public static Paths getQuitPath(Game game) {
-    Paths path = new Paths(game);
-    path.quitGame = true;
-    return path;
-  }
-
   public static Paths getCopy(Paths path) {
     Paths copy = new Paths(path.game);
     copy.crashAhead = path.crashAhead;
-    copy.quitGame = path.quitGame;
     copy.comment = path.comment;
     return copy;
   }
@@ -36,7 +28,6 @@ public class Paths {
   public static Paths onlyFiltered(Paths path, MutableCollection<Move> filtered) {
     Paths copy = new Paths(path.game);
     copy.crashAhead = path.crashAhead;
-    copy.quitGame = path.quitGame;
     copy.comment = path.comment;
     copy.moves = filtered;
     return copy;
@@ -68,26 +59,12 @@ public class Paths {
     return previousLevel;
   }
 
-  public Comparator<Move> bestMoveFirst = (m1, m2) -> {
-    int block = 20 * MAX_LEVEL_WEIGHT * (getOtherLenDiff(m2) - getOtherLenDiff(m1));
-    int weight = (int) (Math.round(10 * getWeight(m2)) - Math.round(10 * getWeight(m1)));
-    return block + weight;
-  };
-
   private Game game;
   private MutableCollection<Move> moves = new FastList<>(0);
   private String comment = "";
   private boolean crashAhead = false;
-  private boolean quitGame = false;
 
-  private MutableIntDoubleMap weight = IntDoubleMaps.mutable.empty();
-  private MutableIntIntMap followers = IntIntMaps.mutable.empty();
-  private MutableIntIntMap mutualOverlap = IntIntMaps.mutable.empty();
-
-  private MutableIntFloatMap friendsTotalLen = IntFloatMaps.mutable.empty();
-  private MutableIntFloatMap opponentsTotalLen = IntFloatMaps.mutable.empty();
-
-  private boolean weightsCalculated = false;
+  private MutableIntObjectMap<MutableList<Move>> roundMoves = new IntObjectHashMap<>();
 
   public Paths(Game game) {
     this.game = game;
@@ -116,10 +93,6 @@ public class Paths {
 
   public int getMapId() {
     return game.getMapId();
-  }
-
-  public void setComment(String comment) {
-    this.comment = comment;
   }
 
   public boolean add(Move move) {
@@ -215,76 +188,6 @@ public class Paths {
     return Paths.onlyFiltered(this, moves.select(move -> move.getTotalLen() == minLength));
   }
 
-  public Move getBestMove() {
-    calcMoveWeights();
-
-    MutableCollection<Move> beginingMoves = getRelativeLevelMoves(1);
-    return beginingMoves.toList().sortThis(bestMoveFirst).getFirst();
-  }
-
-  private void calcMoveWeights() {
-    if (weightsCalculated)
-      return;
-
-    double weightPow = game.getMap().getSetting().getPathWeightPow();
-    if (Double.isNaN(weightPow)) {
-      weightPow = 1.2d;
-    }
-    int succCountMod = game.getMap().getSetting().getPathSuccCountMod();
-    if (succCountMod == -1) {
-      succCountMod = 2;
-    }
-
-    MutableCollection<Move> level = moves;
-    while (!level.isEmpty()) {
-      MutableCollection<Move> previousLevel = Sets.mutable.empty();
-
-      // determine single move endpoints
-      double maxAngle = 0;
-      for (Move move : level) {
-        mutualOverlap.addToValue(move.getPosHash(), 1);
-        for (Move pred : move.getPreds()) {
-          followers.addToValue(pred.hashCode(), 1);
-          if (move.getAngle(pred) > maxAngle) {
-            maxAngle = move.getAngle(pred);
-          }
-        }
-      }
-
-      for (Move move : level) {
-        double overlap = 1 - ((double) (mutualOverlap.get(move.getPosHash()) - 1) / level.size());
-        weight.updateValue(move.hashCode(), 1, x -> x * overlap);
-      }
-
-      double sumLevelWeight = 0d;
-      for (Move move : level) {
-        sumLevelWeight += weight.getIfAbsent(move.hashCode(), 1);
-      }
-
-      double normalizeFactor = MAX_LEVEL_WEIGHT / sumLevelWeight;
-      for (Move move : level) {
-        double succweight = weight.updateValue(move.hashCode(), 0, x -> x * normalizeFactor);
-        for (Move pred : move.getPreds()) {
-          weight.addToValue(pred.hashCode(), Math.pow(succweight, weightPow) + succCountMod);
-          if (move.getPreds().size() > 1) {
-            weight.addToValue(pred.hashCode(), maxAngle - move.getAngle(pred));
-          }
-        }
-        previousLevel.addAll(move.getNonCrashPredecessors());
-      }
-      level = previousLevel;
-    }
-    weightsCalculated = true;
-  }
-
-  public void setFriendsTotalLen(Move move, float len) {
-    friendsTotalLen.put(move.hashCode(), len);
-  }
-
-  public void setOpponentsTotalLen(Move move, float len) {
-    opponentsTotalLen.put(move.hashCode(), len);
-  }
-
   public void trimCrashPaths(int zzz) {
     if (zzz >= 1) {
       MutableCollection<Move> levelCrashs = new FastList<>(0);
@@ -309,7 +212,6 @@ public class Paths {
 
   private Map<Move, MutableSet<Move>> getCommonCrashPred(Collection<Move> crashs) {
     Map<Move, MutableSet<Move>> crashPreds = Maps.mutable.empty();
-
     for (Move crash : crashs) {
       for (Move pred : crash.getPreds()) {
         if (crashPreds.containsKey(pred)) {
@@ -322,8 +224,9 @@ public class Paths {
     return crashPreds;
   }
 
-  public MutableList<Move> getLevelMoves(int level) {
-    calcMoveWeights();
+  public MutableList<Move> getMovesOfRound(int level) {
+    if (roundMoves.containsKey(level))
+      return roundMoves.get(level);
 
     MutableCollection<Move> beginingMoves = Sets.mutable.empty();
     MutableCollection<Move> curLevel = moves;
@@ -332,20 +235,13 @@ public class Paths {
       MutableCollection<Move> previousLevel = curLevel.flatCollect(move -> move.getNonCrashPredecessors()).toSet();
       curLevel = previousLevel;
     }
-    return beginingMoves.toList();
+    MutableList<Move> moveList = beginingMoves.toList();
+    roundMoves.put(level, moveList);
+    return moveList;
   }
 
-  public MutableList<Move> getRelativeLevelMoves(int level) {
-    calcMoveWeights();
-
-    MutableCollection<Move> beginingMoves = Sets.mutable.empty();
-    MutableCollection<Move> curLevel = moves;
-    while (!curLevel.isEmpty()) {
-      beginingMoves.addAll(curLevel.select(move -> move.getPathLen() == level));
-      MutableCollection<Move> previousLevel = curLevel.flatCollect(move -> move.getNonCrashPredecessors()).toSet();
-      curLevel = previousLevel;
-    }
-    return beginingMoves.toList();
+  public MutableList<Move> getSucessors(int level, Move predecessor) {
+    return getMovesOfRound(level).select(m -> m.getPreds().contains(predecessor));
   }
 
   public MutableCollection<Move> getPartialMoves() {
@@ -385,25 +281,12 @@ public class Paths {
     return comment;
   }
 
-  public boolean isQuitting() {
-    return quitGame;
+  public void setComment(String comment) {
+    this.comment = comment;
   }
 
   public boolean isInCurrentRound() {
     return getEndMoves().allSatisfy(move -> move.getPathLen() <= 1);
-  }
-
-  private int getOtherLenDiff(Move move) {
-    return Math.round(opponentsTotalLen.getIfAbsent(move.hashCode(), 0))
-        - Math.round(friendsTotalLen.getIfAbsent(move.hashCode(), 0));
-  }
-
-  public double getWeight(Move move) {
-    return weight.getIfAbsent(move.hashCode(), 10000);
-  }
-
-  public int getFollowers(Move move) {
-    return followers.get(move.hashCode());
   }
 
   @Override

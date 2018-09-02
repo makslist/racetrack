@@ -27,7 +27,7 @@ public class MapAlyzor {
   public static void main(String args[]) {
     for (KaroMap map : KaroMap.getAll()) {
       try {
-        FakeGame game = new FakeGame(map, RuleType.STANDARD, true, Dir.formula1, Crash.forbidden, 2);
+        FakeGame game = new FakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2);
 
         MapAlyzor alyzor = new MapAlyzor(map, game, 16);
         alyzor.run();
@@ -61,7 +61,7 @@ public class MapAlyzor {
 
     Future<Paths> futurePath = threadPool.submit(new MapAlyzePathFinder(game, game.getPlayer()));
     try {
-      System.out.println("\nAnalyzing map " + map.getId() + " (" + map.getName() + ")");
+      // System.out.println("\nAnalyzing map " + map.getId() + " (" + map.getName() + ")");
       Paths paths = futurePath.get();
 
       writeAnalyzeFile(paths);
@@ -76,7 +76,7 @@ public class MapAlyzor {
 
   private void writeAnalyzeFile(Paths paths) {
     short minLength = (short) paths.getMinTotalLength();
-    MutableList<Move> selectedStartMoves = paths.getLevelMoves(0);
+    MutableList<Move> selectedStartMoves = paths.getMovesOfRound(0);
     short minCount = (short) selectedStartMoves.size();
     short minPathWidth = Short.MAX_VALUE;
     Map<Short, MutableCollection<Move>> wide = paths.getWidestPaths();
@@ -106,6 +106,7 @@ public class MapAlyzor {
         .append("/").append(startMoves.size()).append(" optimal starts, length ").append(minLength)
         .append(", bottleneck ").append(minPathWidth).append("\n");
     analyzeMoves.append("\n").append(result);
+    System.out.println(result.toString());
 
     File file = new File(fileName + ".log");
     FileWriter fw = null;

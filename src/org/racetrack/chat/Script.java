@@ -31,7 +31,7 @@ public class Script {
       File jarDir = jarFile.getParentFile();
       File cacheDir = new File(jarDir, "chatrules/");
       return cacheDir;
-    } catch (URISyntaxException e) {
+    } catch (URISyntaxException | NullPointerException e) {
       logger.severe("Script directory not found: " + e.getMessage());
       return null;
     }
@@ -40,7 +40,7 @@ public class Script {
   public static Script getInstance() {
     Script script = new Script();
     File cacheDir = getDir();
-    if (!cacheDir.exists())
+    if (cacheDir == null || !cacheDir.exists())
       return script;
 
     File[] scripts = cacheDir.listFiles(new FilenameFilter() {

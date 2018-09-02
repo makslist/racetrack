@@ -1,8 +1,6 @@
 package org.racetrack.karoapi;
 
 import java.io.*;
-import java.net.*;
-import java.security.*;
 import java.util.*;
 import java.util.logging.*;
 
@@ -17,7 +15,7 @@ import org.json.*;
 public class KaroMap {
 
   private static final String API_MAP = "map";
-  private static final String API_MAP_LIST = "list.json";
+  private static final String API_MAPCODE = "mapcode";
 
   protected static final String ID = "id";
   private static final String NAME = "name";
@@ -37,25 +35,8 @@ public class KaroMap {
 
   private static MutableMap<Integer, KaroMap> cachedMaps = Maps.mutable.empty();
 
-  private static final File getFile(int id, File dir) {
-    return new File(dir, id + ".json");
-  }
-
-  private static File getCacheDir() {
-    CodeSource codeSource = KaroMap.class.getProtectionDomain().getCodeSource();
-    try {
-      File jarFile = new File(codeSource.getLocation().toURI().getPath());
-      File jarDir = jarFile.getParentFile();
-      File cacheDir = new File(jarDir, "mapcache/");
-      return cacheDir;
-    } catch (URISyntaxException use) {
-      logger.severe(use.getMessage());
-    }
-    return null;
-  }
-
   public static KaroMap get(int id) {
-    String mapString = readMap(id);
+    String mapString = KaroClient.callApi(KaroMap.API_MAP + "/" + id);
     try {
       return KaroMap.fromJSONString(mapString);
     } catch (JSONException jse) {
@@ -73,32 +54,6 @@ public class KaroMap {
       System.exit(1);
     }
     return null;
-  }
-
-  private static String readMap(int id) {
-    File cacheDir = getCacheDir();
-    if (!cacheDir.exists()) {
-      cacheDir.mkdir();
-    }
-
-    File mapFile = getFile(id, cacheDir);
-    if (mapFile.exists())
-      return readFile(mapFile);
-    else {
-      try {
-        String mapString = KaroClient.callApi(KaroMap.API_MAP + "/" + id);
-
-        mapFile.createNewFile();
-        Writer wr = new FileWriter(mapFile);
-        wr.write(mapString);
-        wr.close();
-
-        return mapString;
-      } catch (IOException ioe) {
-        logger.severe(ioe.getMessage());
-        return null;
-      }
-    }
   }
 
   private static String readFile(File mapFile) {
@@ -127,7 +82,7 @@ public class KaroMap {
   }
 
   private static void readMaps() {
-    String apiResponse = KaroClient.callApi(API_MAP + "/" + API_MAP_LIST);
+    String apiResponse = KaroClient.callApi(API_MAP + "/");
 
     JSONArray array = new JSONArray(apiResponse);
     for (int i = 0; i < array.length(); i++) {
@@ -140,7 +95,7 @@ public class KaroMap {
     if (cachedMaps.isEmpty()) {
       readMaps();
     }
-    return cachedMaps.toList();
+    return cachedMaps.toList().sortThis((m1, m2) -> m1.id - m2.id);
   }
 
   public static KaroMap getRandomHighRated() {
@@ -185,6 +140,7 @@ public class KaroMap {
     rating = json.optDouble(RATING);
     players = json.optInt(PLAYERS);
     mapcode = json.optString(MAPCODE);
+    mapcode = getMapcode();
     map = readMapFromMapcode();
     cols = Integer.max(json.optInt(COLS), map[0].length);
     rows = Integer.max(json.optInt(ROWS), map.length);
@@ -200,28 +156,6 @@ public class KaroMap {
       }
     }
     active = json.optBoolean(ACTIVE);
-  }
-
-  public JSONObject toJSONObject() {
-    JSONObject json = new JSONObject();
-
-    saveMapToMapcode();
-    json.put(ID, id);
-    json.put(NAME, name);
-    json.put(AUTHOR, author);
-    json.put(COLS, cols);
-    json.put(ROWS, rows);
-    json.put(RATING, rating);
-    json.put(PLAYERS, players);
-    json.put(MAPCODE, mapcode);
-    JSONArray cpArray = new JSONArray();
-    for (MapTile cp : cps) {
-      cpArray.put(cp.asString());
-    }
-    json.put(CPS, cpArray);
-    json.put(ACTIVE, active);
-
-    return json;
   }
 
   public int getId() {
@@ -253,6 +187,9 @@ public class KaroMap {
   }
 
   public String getMapcode() {
+    if (mapcode == null || mapcode.isEmpty()) {
+      mapcode = KaroClient.callApi(KaroMap.API_MAPCODE + "/" + id).replace("\"", "");
+    }
     return mapcode;
   }
 
@@ -308,7 +245,8 @@ public class KaroMap {
   }
 
   private char[][] readMapFromMapcode() {
-    String[] split = mapcode.split("\\R|(/n/r|/n)");
+    String mapcode2 = getMapcode();
+    String[] split = mapcode2.split("\\R|(\\\\n)");
     char[][] map = new char[split.length][];
     for (int i = 0; i < split.length; i++) {
       map[i] = split[i].toCharArray();
@@ -316,61 +254,8 @@ public class KaroMap {
     return map;
   }
 
-  private void saveMapToMapcode() {
-    StringBuilder sb = new StringBuilder();
-    for (int j = 0; j < getRows(); j++) {
-      for (int i = 0; i < getCols(); i++) {
-        sb.append(getTileOf(i, j).asString());
-      }
-      if (j != getRows() - 1) {
-        sb.append('\r').append('\n');
-      }
-    }
-    mapcode = sb.toString();
-  }
-
-  private void writeToFile() {
-    File mapFile = null;
-    try {
-      File dir = getCacheDir();
-      mapFile = getFile(id, dir);
-
-      if (mapFile != null) {
-        if (mapFile.exists()) {
-          mapFile.delete();
-        }
-
-        mapFile.createNewFile();
-        Writer wr = new FileWriter(mapFile);
-        String jsonMap = toJSONObject().toString();
-        wr.write(jsonMap);
-        wr.close();
-      }
-    } catch (IOException ioe) {
-      logger.severe(ioe.getMessage());
-    }
-  }
-
   public boolean isInNight() {
     return !getTilesAsMoves(MapTile.NIGHT).isEmpty();
-  }
-
-  public void mergeNightMap(KaroMap lightMap) {
-    boolean mapChanged = false;
-    for (int j = 0; j < getRows(); j++) {
-      for (int i = 0; i < getCols(); i++) {
-        if (getTileOf(i, j).equals(MapTile.NIGHT)) {
-          MapTile lightUp = lightMap.getTileOf(i, j);
-          if (!lightUp.equals(MapTile.NIGHT)) {
-            setTileOf(i, j, lightUp);
-            mapChanged = true;
-          }
-        }
-      }
-    }
-    if (mapChanged) {
-      writeToFile();
-    }
   }
 
   public boolean contains(Move move) {
@@ -445,10 +330,6 @@ public class KaroMap {
     return MapTile.valueOf(map[y][x]);
   }
 
-  private void setTileOf(int x, int y, MapTile tile) {
-    map[y][x] = tile.asChar();
-  }
-
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -459,7 +340,7 @@ public class KaroMap {
     sb.append(ROWS).append(":").append(rows).append("\n");
     sb.append(RATING).append(":").append(rating).append("\n");
     sb.append(PLAYERS).append(":").append(players).append("\n");
-    sb.append(MAPCODE).append(":").append(mapcode).append("\n");
+    sb.append(MAPCODE).append(":").append(getMapcode()).append("\n");
     sb.append(CPS).append(":").append(cps.toString()).append("\n");
     return sb.toString();
   }

@@ -134,7 +134,7 @@ public class KaroClient {
     return sb.toString();
   }
 
-  private String getAPIURL(String file) {
+  private String getApiURL(String file) {
     StringBuilder sb = new StringBuilder(secureConnection ? HTTPS_PROTOCOL : HTTP_PROTOCOL);
     sb.append("://").append(KARO_HOST).append("/").append(KARO_API).append("/").append(file);
     return sb.toString();
@@ -152,7 +152,7 @@ public class KaroClient {
   }
 
   public boolean logIn() {
-    String checkUser = sendGetRequest(getAPIURL(User.CHECK));
+    String checkUser = sendGetRequest(getApiURL(User.CHECK));
     while (true) {
       try {
         User userCheck = User.fromJSONString(checkUser);
@@ -165,7 +165,7 @@ public class KaroClient {
       Param loginParam = new Param("login", login);
       Param passParam = new Param("password", password);
       String params = getJSONParamString(loginParam, passParam);
-      String loginResponse = sendPostRequest(getAPIURL(LOGIN), params, CONTENT_TYPE_JSON);
+      String loginResponse = sendPostRequest(getApiURL(LOGIN), params, CONTENT_TYPE_JSON);
       try {
         User logInUser = User.fromJSONString(loginResponse);
 
@@ -224,7 +224,7 @@ public class KaroClient {
       return false;
 
     String params = "game=" + game.asJSON();
-    String response = sendPostRequest(getAPIURL(Game.API_ADD), params, CONTENT_TYPE_FORM);
+    String response = sendPostRequest(getApiURL(Game.API_ADD), params, CONTENT_TYPE_FORM);
     try {
       JSONObject jsonObj = new JSONObject(response).getJSONObject("game");
       Game createdGame = Game.fromJSON(jsonObj);
@@ -280,7 +280,7 @@ public class KaroClient {
       return false;
 
     try {
-      String chatList = sendGetRequest(getAPIURL(Chat.API_URL_LIST));
+      String chatList = sendGetRequest(getApiURL(Chat.API_URL_LIST));
       if (!chatList.isEmpty()) {
         JSONArray array = new JSONArray(chatList);
         Chat.getMessages(array);
@@ -295,7 +295,7 @@ public class KaroClient {
     try {
       Param msg = new Param("msg", message);
       String params = getJSONParamString(msg);
-      String chatResponse = sendPostRequest(getAPIURL(Chat.API_SEND), params, CONTENT_TYPE_JSON);
+      String chatResponse = sendPostRequest(getApiURL(Chat.API_SEND), params, CONTENT_TYPE_JSON);
 
       String user = new JSONArray(chatResponse).optJSONObject(0).getString("user");
       return user == login;
@@ -310,7 +310,7 @@ public class KaroClient {
     Param messageParam = new Param("text", String.valueOf(message));
     String params = getJSONParamString(dateSepParam, userParam, messageParam);
 
-    String response = sendPostRequest(getAPIURL(API_SEND_MESSAGES), params, CONTENT_TYPE_JSON);
+    String response = sendPostRequest(getApiURL(API_SEND_MESSAGES), params, CONTENT_TYPE_JSON);
     try {
       int contactId = new JSONObject(response).getInt("contact_id");
       return contactId == userId;

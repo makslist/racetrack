@@ -296,18 +296,31 @@ public class Move {
     return other != null && x == other.x && y == other.y;
   }
 
-  private boolean equalsPos(MutableCollection<Move> moves) {
+  public boolean isNearPos(Move move, int dist) {
+    return getDist(move) < dist;
+  }
+
+  public boolean isNearPos(MutableCollection<Move> moves, int dist) {
+    for (Move other : moves)
+      if (getDist(other) < dist)
+        return true;
+    return false;
+  }
+
+  public boolean equalsStart(Move other) {
+    return other != null && (x - xv) == (other.x - other.xv) && (y - yv) == (other.y - other.yv);
+  }
+
+  public boolean equalsPos(MutableCollection<Move> moves) {
     return moves != null ? moves.anySatisfy(move -> move.equalsPos(this)) : false;
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append(X).append(":").append(x);
-    sb.append(";").append(Y).append(":").append(y);
+    sb.append(x).append("/").append(y);
     if (xv != 0 || yv != 0) {
-      sb.append(";").append(XV).append(":").append(xv);
-      sb.append(";").append(YV).append(":").append(yv);
+      sb.append("/").append(xv).append("/").append(yv);
     }
     return sb.toString();
   }

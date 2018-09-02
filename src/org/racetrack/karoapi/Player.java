@@ -81,14 +81,13 @@ public class Player {
     missingCps = getCps(json.optJSONArray(MISSING_CPS));
     if (json.has(MOVES)) {
       moves = LogMove.getPreviousMoves(json.getJSONArray(MOVES));
-    }
-
-    if (json.has(LASTMOVE)) {
-      lastmove = new LogMove(json.getJSONObject(LASTMOVE));
-    }
-    int indexOfLastMove = moves.indexOf(lastmove);
-    if (indexOfLastMove >= 0) {
-      lastmove = moves.get(indexOfLastMove);
+      if (json.has(LASTMOVE)) {
+        lastmove = new LogMove(json.getJSONObject(LASTMOVE));
+      }
+      int indexOfLastMove = moves.indexOf(lastmove);
+      if (indexOfLastMove >= 0) {
+        lastmove = moves.get(indexOfLastMove);
+      }
     }
 
     if (json.has(POSSIBLES)) {
@@ -157,6 +156,10 @@ public class Player {
     return status.equals(Status.OK);
   }
 
+  public boolean hasFinished() {
+    return lastmove != null && lastmove.xv == 0 && lastmove.yv == 0 && lastmove.totalLen > 0;
+  }
+
   public int getMoveCount() {
     return moveCount;
   }
@@ -192,7 +195,7 @@ public class Player {
   public LogMove getMove(int round) {
     if (round >= 0) {
       for (LogMove move : moves) {
-        if (move.totalLen == round - 1 && !move.isCrash())
+        if (move.totalLen == round && !move.isCrash())
           return move;
       }
     }
@@ -242,16 +245,22 @@ public class Player {
     return id == ((Player) obj).id;
   }
 
+  public boolean isNearby(Player player, int round, int dist) {
+    return getMove(round) != null && getMove(round).isNearPos(player.getMove(round), dist);
+  }
+
+  public boolean isNearby(MutableCollection<Move> possibles, int round, int dist) {
+    return getMove(round) != null && getMove(round).isNearPos(possibles, dist);
+  }
+
+  @Override
+  public int hashCode() {
+    return id;
+  }
+
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append(ID).append(":").append(id).append("\n");
-    sb.append(NAME).append(":").append(name).append("\n");
-    sb.append(DRAN).append(":").append(dran).append("\n");
-    sb.append(MOVED).append(":").append(moved).append("\n");
-    sb.append(POSITION).append(":").append(position).append("\n");
-    sb.append(MOVE_COUNT).append(":").append(moveCount).append("\n");
-    return sb.toString();
+    return name;
   }
 
 }

@@ -174,7 +174,7 @@ public class Game implements Comparable<Game> {
     location = json.getString(LOCATION);
   }
 
-  protected Game(JSONObject jGame, JSONArray jPlayers, JSONObject jMap) {
+  public Game(JSONObject jGame, JSONArray jPlayers, JSONObject jMap) {
     this(jGame);
 
     if (jPlayers != null) {
@@ -229,8 +229,6 @@ public class Game implements Comparable<Game> {
     map = KaroMap.get(mapId);
     if (map == null) {
       map = KaroMap.fromJSON(jMap);
-    } else if (map.isInNight()) {
-      map.mergeNightMap(KaroMap.fromJSON(jMap));
     }
   }
 
@@ -304,10 +302,9 @@ public class Game implements Comparable<Game> {
   }
 
   public boolean isTheOnlyHuman(User user) {
-    if (user.isBot())
+    if (user == null || user.isBot())
       return false;
-    MutableList<Player> restPlayers = getActivePlayers().reject(player -> player.getId() == user.getId());
-    return restPlayers.allSatisfy(player -> player.isBot());
+    return getActivePlayers().reject(p -> p.getId() == user.getId()).allSatisfy(p -> p.isBot());
   }
 
   public Player getDranPlayer() {
@@ -337,11 +334,25 @@ public class Game implements Comparable<Game> {
   }
 
   public MutableList<Player> getActivePlayers() {
-    return getPlayers().select(player -> player.isActive());
+    return getPlayers().select(p -> p.isActive() && !p.hasFinished());
+  }
+
+  public MutableList<Player> getAlreadyMovedPlayers() {
+    return getActivePlayers().select(p -> p.getMove(getCurrentRound()) != null);
+  }
+
+  public MutableList<Player> getNotYetMovedPlayers() {
+    return getActivePlayers().select(p -> p.getMove(getCurrentRound()) == null);
+  }
+
+  public MutableList<Player> getNearbyPlayers(Player player, int dist) {
+    MutableCollection<Move> possibles = player.getPossibles();
+    return getActivePlayers()
+        .select(p -> player.isNearby(p, getCurrentRound() - 1, dist) || p.isNearby(possibles, getCurrentRound(), dist));
   }
 
   public int getActivePlayersCount() {
-    return getPlayers().count(player -> player.isActive());
+    return getPlayers().count(p -> p.isActive());
   }
 
   public boolean wasPlayerReInLastRound() {
@@ -353,7 +364,7 @@ public class Game implements Comparable<Game> {
     LogMove move = player.getMove(round);
 
     if (move != null)
-      return getPlayers().allSatisfy(other -> other.equals(player) || move.isBefore(other.getMove(round)));
+      return getPlayers().allSatisfy(p -> p.equals(player) || move.isBefore(p.getMove(round)));
     else
       return false;
   }
@@ -363,7 +374,7 @@ public class Game implements Comparable<Game> {
    */
   public int getPosInRoundOfCurrentPlayer() {
     int round = getCurrentRound();
-    return getActivePlayers().count(player -> player.getMoveCount() >= round) + 1;
+    return getActivePlayers().count(p -> p.getMoveCount() >= round) + 1;
   }
 
   public int getMapId() {
@@ -382,10 +393,16 @@ public class Game implements Comparable<Game> {
 
   public int getCurrentRound() {
     MutableCollection<Player> activePlayers = getActivePlayers();
+    if (activePlayers.isEmpty())
+      return -1;
     int maxMoveCount = activePlayers.maxBy(player -> player.getMoveCount()).getMoveCount();
-    if (activePlayers.allSatisfy(player -> player.getMoveCount() == maxMoveCount))
-      return maxMoveCount + 1;
+    if (activePlayers.anySatisfy(player -> player.getMoveCount() != maxMoveCount))
+      return maxMoveCount - 1;
     return maxMoveCount;
+  }
+
+  public boolean isStarted() {
+    return getCurrentRound() > 0;
   }
 
   public boolean isWithIq() {

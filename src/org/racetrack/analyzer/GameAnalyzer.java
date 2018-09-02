@@ -20,6 +20,10 @@ public class GameAnalyzer {
 
   private static final Collection<String> NOT_INCLUDE_PLAYER = Arrays.asList("KarasersBIZEPS");
 
+  public static void main(String args[]) {
+    completedGame(106908);
+  }
+
   private GameAnalyzer() {
   }
 

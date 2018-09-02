@@ -48,7 +48,7 @@ public class NavigationPanel extends JPanel {
       int endLevel = paths.getMinTotalLength();
       int startLevel = endLevel - paths.getMinLength();
       for (int i = endLevel; i >= startLevel; i--) {
-        MutableList<Move> levelMoves = paths.getLevelMoves(i).sortThis(paths.bestMoveFirst);
+        MutableList<Move> levelMoves = paths.getMovesOfRound(i);
 
         for (Move move : levelMoves) {
           int offset = endLevel - (move.getTotalLen() - move.getPathLen());
@@ -74,22 +74,6 @@ public class NavigationPanel extends JPanel {
             g2d.setFont(font);
             g2d.drawString(Short.toString(move.getTotalLen()), (x2 + x1) / 2, (y2 + y1) / 2);
           }
-        }
-        Move first = levelMoves.getFirst();
-        if (withIdealLine && first != null && (first.getPathLen() != 0 || first.getTotalLen() == 0)) {
-          int x1 = (first.getX() - first.getXv()) * scale + scale / 2;
-          int y1 = (first.getY() - first.getYv()) * scale + scale / 2;
-          int x2 = first.getX() * scale + scale / 2;
-          int y2 = first.getY() * scale + scale / 2;
-          g2d.setColor(Color.ORANGE);
-          g2d.drawLine(x1, y1, x2, y2);
-          g2d.fillOval(x2 - scale / 4, y2 - scale / 4, scale / 2, scale / 2);
-          Font font = new Font(g2d.getFont().getFontName(), Font.PLAIN, 9);
-          g2d.setFont(font);
-          g2d.setColor(Color.BLACK);
-          g2d.drawString(
-              Short.toString(first.getTotalLen()) + " (" + String.format("%1$,.2f", paths.getWeight(first)) + ")",
-              (x2 + x1) / 2, (y2 + y1) / 2);
         }
       }
     }

@@ -7,7 +7,6 @@ import java.util.regex.*;
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
-import org.racetrack.analyzer.*;
 import org.racetrack.karoapi.*;
 
 public class ChatModule {
@@ -67,17 +66,13 @@ public class ChatModule {
     script = Script.getInstance();
   }
 
-  public ChatResponse respondInCar(Game game, Move currentMove, int pathLength) {
+  public ChatResponse respondInCar(Game game, Move currentMove) {
     for (Chat chat : game.getMissedMessages()) {
       if (isAddressedToUser(chat) || game.isTheOnlyHuman(User.get(chat.getUser()))) {
         for (String sentence : chat.getSentences()) {
           String answer = sentence(cleanUser(sentence));
           if (!answer.isEmpty()) {
-            if (Replacements.ANALYZE.matches(answer)) {
-              answer = GameAnalyzer.runningGame(game, currentMove, pathLength);
-            } else {
-              answer = replaceConstants(answer, chat.getUser());
-            }
+            answer = replaceConstants(answer, chat.getUser());
             return new ChatResponse(answer);
           }
         }

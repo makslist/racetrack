@@ -17,16 +17,15 @@ public class User {
   private static final String API_URL_GAMES = "games?user=";
   private static final String API_URL_FINISHED = "&finished=true";
 
+  private static final String API_USER = "user";
   private static final String API_USERS = "users";
-  private static final String API_USER_DEPRECATED = "user";
-  private static final String API_USER_DRAN = "dran.json";
-  public static final String CHECK = API_USERS + "/" + "check";
+  private static final String API_USER_DRAN = "dran";
+  public static final String CHECK = API_USER + "/" + "check";
 
   private static final String WIKI_IQ_API_PARAM = "action=parse&format=json&page=KaroIQ&prop=links&section=4";
   private static final String WIKI_RE_API_PARAM = "action=parse&format=json&page=Einladeraum&prop=sections";
   private static final String WIKI_RE_USERS_API_URL = "action=parse&format=json&page=Einladeraum&prop=links&section=";
 
-  private static final String GAMES = "games";
   private static final String ID = "id";
   private static final String LOGIN = "login";
   private static final String COLOR = "color";
@@ -65,15 +64,15 @@ public class User {
   }
 
   public static final User get(String login) {
-    if (users.isEmpty() || !users.containsKey(login)) {
+    if (users.isEmpty() || !users.containsKey(login.toLowerCase())) {
       readUsers();
     }
-    return users.getOrDefault(login, null);
+    return users.getOrDefault(login.toLowerCase(), null);
   }
 
   private static final User readUser(int id) {
     try {
-      User user = User.fromJSONString(KaroClient.callApi(API_USERS + "/" + id));
+      User user = User.fromJSONString(KaroClient.callApi(API_USER + "/" + id));
       users.put(user.login, user);
       return user;
     } catch (JSONException e) {
@@ -90,7 +89,7 @@ public class User {
         JSONArray array = new JSONArray(json);
         for (int i = 0; i < array.length(); i++) {
           User user = User.fromJSON((JSONObject) array.get(i));
-          users.put(user.login, user);
+          users.put(user.login.toLowerCase(), user);
         }
       }
     } catch (JSONException e) {
@@ -359,11 +358,11 @@ public class User {
   }
 
   public List<Game> getDranGames() {
-    String apiResponse = KaroClient.callApi(API_USER_DEPRECATED + "/" + id + "/" + API_USER_DRAN);
+    String apiResponse = KaroClient.callApi(API_USER + "/" + id + "/" + API_USER_DRAN);
     if (!apiResponse.isEmpty()) {
       try {
-        JSONObject reponse = new JSONObject(apiResponse);
-        return getGames(reponse.getJSONArray(GAMES));
+        JSONArray reponse = new JSONArray(apiResponse);
+        return getGames(reponse);
       } catch (JSONException je) {
         logger.severe("Error while reading gamelist: " + je.getMessage());
       }
@@ -375,8 +374,11 @@ public class User {
     if (array == null)
       return new FastList<>(0);
 
-    List<Game> games = new FastList<>(array.length());
-    array.forEach(obj -> games.add(Game.fromJSON((JSONObject) obj)));
+    List<Game> games = new FastList<>();
+    for (int i = 0; i < array.length(); i++) {
+      JSONObject obj = array.getJSONObject(i);
+      games.add(Game.get(obj.getInt(Game.ID)));
+    }
     return games;
   }
 
@@ -398,6 +400,11 @@ public class User {
 
   public Player asPlayer() {
     return Player.getNew(getId());
+  }
+
+  @Override
+  public int hashCode() {
+    return id;
   }
 
   @Override

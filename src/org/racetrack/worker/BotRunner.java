@@ -19,7 +19,7 @@ public class BotRunner implements Runnable {
   private int maxThreads = Integer.max(Settings.getInstance().getInt(Property.maxParallelGameThreads), 1);
   private int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors());
   private ExecutorService threadPool = Executors.newWorkStealingPool(minThreads);
-  private CompletionService<Paths> pathFinderService = new ExecutorCompletionService<>(threadPool);
+  private CompletionService<GameAction> gameTreeSearch = new ExecutorCompletionService<>(threadPool);
   private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
   private String userLogin;
@@ -34,7 +34,6 @@ public class BotRunner implements Runnable {
   private BlockingQueue<Game> games = new PriorityBlockingQueue<>();
   private BlockingQueue<Chat> chatMsg = new LinkedBlockingQueue<>();
   private Set<Integer> gamesInProcess = new ConcurrentSkipListSet<>();
-  private BlockingQueue<Paths> finishedPaths = new LinkedBlockingQueue<>();
 
   public BotRunner() {
     Settings settings = Settings.getInstance();
@@ -83,32 +82,22 @@ public class BotRunner implements Runnable {
       }
     }, 5, 55, TimeUnit.SECONDS);
 
-    // scheduler.scheduleAtFixedRate(() -> {
-    // if (withChat) {
-    // List<User> karokids = User.getKaroKids();
-    // for (User kid : karokids) {
-    // ChatResponse congratulation = chatbot.contratulate(kid, "wuensche karotag");
-    // if (congratulation.isAnswered()) {
-    // karo.chat(congratulation.getText());
-    // }
-    // }
-    // List<User> birthdayKids = User.getBirthdayKids();
-    // if (birthdayKids.size() <= 2) {
-    // for (User kid : birthdayKids) {
-    // ChatResponse congratulation = chatbot.contratulate(kid, "wuensche geburtstag");
-    // if (congratulation.isAnswered()) {
-    // karo.chat(congratulation.getText());
-    // }
-    // }
-    // }
-    // }
-    // }, computeDelaySeconds(6, 30, 0), 24 * 60 * 60, TimeUnit.SECONDS);
+    scheduler.scheduleAtFixedRate(() -> {
+      if (withChat) {
+        List<User> karokids = User.getKaroKids();
+        for (User kid : karokids) {
+          ChatResponse congratulation = chatbot.contratulate(kid, "wuensche karotag");
+          if (congratulation.isAnswered()) {
+            karo.chat(congratulation.getText());
+          }
+        }
+      }
+    }, computeDelaySeconds(6, 30, 0), 24 * 60 * 60, TimeUnit.SECONDS);
 
     new Thread(websocketClient()).start();
     new Thread(chat()).start();
     new Thread(queueGame()).start();
-    new Thread(solvePath()).start();
-    new Thread(postMove()).start();
+    new Thread(postCalculatedMove()).start();
   }
 
   private Runnable websocketClient() {
@@ -171,7 +160,7 @@ public class BotRunner implements Runnable {
             Player player = game.getPlayer(user);
             if (game.isDranPlayer(player)) {
               gamesInProcess.add(game.getId());
-              pathFinderService.submit(new BlockingPathFinder(game, player));
+              gameTreeSearch.submit(new MaxN(game, player));
             }
           } catch (NullPointerException npe) {
           } catch (OutOfMemoryError oome) {
@@ -187,53 +176,41 @@ public class BotRunner implements Runnable {
     };
   }
 
-  private Runnable solvePath() {
+  private Runnable postCalculatedMove() {
     return () -> {
       while (true) {
         try {
-          finishedPaths.put(pathFinderService.take().get());
-        } catch (InterruptedException | ExecutionException e) {
-          logger.warning(e.getMessage());
-        }
-      }
-    };
-  }
+          GameAction action = gameTreeSearch.take().get();
 
-  private Runnable postMove() {
-    return () -> {
-      while (true) {
-        try {
-          Paths path = finishedPaths.take();
-
-          Game game = path.getGame();
-          if (path.isQuitting()) {
-            gamesInProcess.remove(path.getGameId());
-            karo.quitGame(path.getGameId());
+          Game game = action.getGame();
+          if (action.isQuitGame()) {
+            gamesInProcess.remove(game.getId());
+            karo.quitGame(game.getId());
           } else {
-            Move move = path.getBestMove();
+            Move move = action.getMove();
             if (move != null) {
-              gamesInProcess.remove(path.getGameId());
-              if (path.hasComment()) {
-                karo.moveWithRadio(path.getGameId(), move, path.getComment());
+              gamesInProcess.remove(game.getId());
+              if (action.hasPathComment()) {
+                karo.moveWithRadio(game.getId(), move, action.getPathComment());
               } else {
-                ChatResponse answer = withChat ? chatbot.respondInCar(game, move, path.getMinTotalLength())
-                    : ChatResponse.empty();
+                ChatResponse answer = withChat ? chatbot.respondInCar(game, move) : ChatResponse.empty();
                 if (answer.isText()) {
-                  karo.moveWithRadio(path.getGameId(), move, answer.getText());
+                  karo.moveWithRadio(game.getId(), move, answer.getText());
                 } else {
-                  karo.move(path.getGameId(), move);
+                  karo.move(game.getId(), move);
                 }
               }
             } else {
-              gamesInProcess.remove(path.getGameId());
-              karo.resetAfterCrash(path.getGameId());
+              gamesInProcess.remove(game.getId());
+              karo.resetAfterCrash(game.getId());
             }
           }
 
-          if (path.isCrashAhead()) {
+          if (action.isCrashAhead()) {
             games.addAll(user.getDranGames());
           }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | ExecutionException e) {
+          logger.warning(e.getMessage());
         }
         System.gc();
       }
