@@ -358,10 +358,11 @@ public class User {
   }
 
   public List<Game> getDranGames() {
-    String apiResponse = KaroClient.callApi(API_USER + "/" + id + "/" + API_USER_DRAN);
+    String apiResponse = KaroClient.callApi(API_USER + "/" + id + "/" + API_USER_DRAN + ".json");
     if (!apiResponse.isEmpty()) {
       try {
-        JSONArray reponse = new JSONArray(apiResponse);
+        JSONObject obj = new JSONObject(apiResponse);
+        JSONArray reponse = obj.getJSONArray("games");
         return getGames(reponse);
       } catch (JSONException je) {
         logger.severe("Error while reading gamelist: " + je.getMessage());

@@ -160,7 +160,7 @@ public class BotRunner implements Runnable {
             Player player = game.getPlayer(user);
             if (game.isDranPlayer(player)) {
               gamesInProcess.add(game.getId());
-              gameTreeSearch.submit(new MaxN(game, player));
+              gameTreeSearch.submit(new GTS(game, player));
             }
           } catch (NullPointerException npe) {
           } catch (OutOfMemoryError oome) {
@@ -190,8 +190,8 @@ public class BotRunner implements Runnable {
             Move move = action.getMove();
             if (move != null) {
               gamesInProcess.remove(game.getId());
-              if (action.hasPathComment()) {
-                karo.moveWithRadio(game.getId(), move, action.getPathComment());
+              if (action.hasComment()) {
+                karo.moveWithRadio(game.getId(), move, action.getComment());
               } else {
                 ChatResponse answer = withChat ? chatbot.respondInCar(game, move) : ChatResponse.empty();
                 if (answer.isText()) {

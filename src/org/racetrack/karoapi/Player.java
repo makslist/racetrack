@@ -153,11 +153,7 @@ public class Player {
   }
 
   public boolean isActive() {
-    return status.equals(Status.OK);
-  }
-
-  public boolean hasFinished() {
-    return lastmove != null && lastmove.xv == 0 && lastmove.yv == 0 && lastmove.totalLen > 0;
+    return status.equals(Status.OK) && (moveCount == 0 || lastmove != null);
   }
 
   public int getMoveCount() {
@@ -246,7 +242,8 @@ public class Player {
   }
 
   public boolean isNearby(Player player, int round, int dist) {
-    return getMove(round) != null && getMove(round).isNearPos(player.getMove(round), dist);
+    LogMove nearMove = player.getMove(round);
+    return getMove(round) != null && nearMove != null && getMove(round).isNearPos(nearMove, dist);
   }
 
   public boolean isNearby(MutableCollection<Move> possibles, int round, int dist) {

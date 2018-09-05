@@ -5,9 +5,10 @@ import org.racetrack.karoapi.*;
 public class GameAction {
 
   private Game game;
-  private Move move;
-  private Paths paths;
   private boolean quitGame;
+  private Move move;
+  private String comment;
+  private boolean crashAhead;
 
   public static GameAction quitGame(Game game) {
     GameAction action = new GameAction(game);
@@ -19,9 +20,9 @@ public class GameAction {
     this.game = game;
   }
 
-  public GameAction(Game game, Paths paths, Move move) {
+  public GameAction(Game game, Move move, String comment, boolean crashAhead) {
     this.game = game;
-    this.paths = paths;
+    this.comment = comment;
     this.move = move;
   }
 
@@ -37,16 +38,16 @@ public class GameAction {
     return move;
   }
 
-  public boolean hasPathComment() {
-    return paths.hasComment();
+  public boolean hasComment() {
+    return comment != null && !"".equals(comment);
   }
 
-  public String getPathComment() {
-    return paths.getComment();
+  public String getComment() {
+    return comment;
   }
 
   public boolean isCrashAhead() {
-    return paths.isCrashAhead();
+    return crashAhead;
   }
 
 }

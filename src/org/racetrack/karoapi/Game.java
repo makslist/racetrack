@@ -334,7 +334,8 @@ public class Game implements Comparable<Game> {
   }
 
   public MutableList<Player> getActivePlayers() {
-    return getPlayers().select(p -> p.isActive() && !p.hasFinished());
+    return getPlayers().select(p -> p.isActive()
+        && (p.getLastmove() == null || !p.getLastmove().equalsPos(getMap().getTilesAsMoves(MapTile.PARC))));
   }
 
   public MutableList<Player> getAlreadyMovedPlayers() {

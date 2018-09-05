@@ -297,7 +297,7 @@ public class Move {
   }
 
   public boolean isNearPos(Move move, int dist) {
-    return getDist(move) < dist;
+    return getDist(move) <= dist;
   }
 
   public boolean isNearPos(MutableCollection<Move> moves, int dist) {

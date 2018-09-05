@@ -6,11 +6,11 @@ import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.map.primitive.*;
 import org.racetrack.karoapi.*;
 
-public class MiniMax {
+public class Evaluation {
 
-  public static MiniMax max(Collection<MiniMax> nodesValues, Player player) {
-    MiniMax max = null;
-    for (MiniMax value : nodesValues) {
+  public static Evaluation max(Collection<Evaluation> nodesValues, Player player) {
+    Evaluation max = null;
+    for (Evaluation value : nodesValues) {
       int playerPos = value.players.get(player);
       if (max == null || value.ratings[playerPos] > max.ratings[playerPos]) {
         max = value;
@@ -31,9 +31,32 @@ public class MiniMax {
     return max;
   }
 
-  public static MiniMax avg(MutableList<MiniMax> values, ObjectIntMap<Player> players) {
-    MiniMax avg = new MiniMax(players);
-    for (MiniMax value : values) {
+  public static Evaluation min(Collection<Evaluation> nodesValues, Player player) {
+    Evaluation min = null;
+    for (Evaluation value : nodesValues) {
+      int playerPos = value.players.get(player);
+      if (min == null || value.ratings[playerPos] < min.ratings[playerPos]) {
+        min = value;
+      } else if (value.ratings[playerPos] == min.ratings[playerPos]) {
+        double playerOpponents = 0d;
+        double maxOpponents = 0d;
+        for (int i = 0; i < value.ratings.length; i++) {
+          if (i != playerPos) {
+            playerOpponents += value.ratings[i];
+            maxOpponents += min.ratings[i];
+          }
+        }
+        if (playerOpponents > maxOpponents) {
+          min = value;
+        }
+      }
+    }
+    return min;
+  }
+
+  public static Evaluation avg(MutableList<Evaluation> values, ObjectIntMap<Player> players) {
+    Evaluation avg = new Evaluation(players);
+    for (Evaluation value : values) {
       for (int i = 0; i < avg.ratings.length; i++) {
         avg.ratings[i] += value.ratings[i];
       }
@@ -45,14 +68,14 @@ public class MiniMax {
   }
 
   private ObjectIntMap<Player> players = null;
-  private double[] ratings = null;
+  private float[] ratings = null;
 
-  public MiniMax(ObjectIntMap<Player> players) {
+  public Evaluation(ObjectIntMap<Player> players) {
     this.players = players;
-    ratings = new double[players.size()];
+    ratings = new float[players.size()];
   }
 
-  public void setValue(Player player, double value) {
+  public void setValue(Player player, float value) {
     ratings[players.get(player)] = value;
   }
 
