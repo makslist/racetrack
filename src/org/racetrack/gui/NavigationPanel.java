@@ -16,12 +16,10 @@ public class NavigationPanel extends JPanel {
   private PathFinder pathFinder;
   private Paths paths = null;
   private int scale;
-  private boolean withIdealLine;
 
   public NavigationPanel(PathFinder pathFinder, int scale) {
     this.pathFinder = pathFinder;
     this.scale = scale;
-    withIdealLine = true;
 
     setBackground(GamePanel.BACKGROUND_DEFAULT);
   }
@@ -29,7 +27,6 @@ public class NavigationPanel extends JPanel {
   public NavigationPanel(Paths paths, int scale, int cols, int rows) {
     this.paths = paths;
     this.scale = scale;
-    withIdealLine = false;
 
     setBackground(GamePanel.BACKGROUND_DEFAULT);
     setPreferredSize(new Dimension(cols * scale, rows * scale));

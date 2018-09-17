@@ -53,10 +53,10 @@ public class Player {
   protected Status status;
   protected int moveCount;
   protected int crashCount;
-  private MutableCollection<MapTile> checkedCps;
-  protected MutableCollection<MapTile> missingCps;
+  private MutableCollection<MapTile> checkedCps = new FastList<>(0);
+  protected MutableCollection<MapTile> missingCps = new FastList<>(0);
   private LogMove lastmove;
-  protected MutableCollection<Move> possibles;
+  protected MutableCollection<Move> possibles = new FastList<>(0);
   protected MutableList<LogMove> moves;
   private User user;
 
@@ -148,12 +148,12 @@ public class Player {
     return position;
   }
 
-  public Status getStatus() {
-    return status;
+  public boolean isActive() {
+    return status.equals(Status.OK) && position == 0;
   }
 
-  public boolean isActive() {
-    return status.equals(Status.OK) && (moveCount == 0 || lastmove != null);
+  public boolean hasFinished() {
+    return status.equals(Status.OK) && position > 0;
   }
 
   public int getMoveCount() {
@@ -246,8 +246,17 @@ public class Player {
     return getMove(round) != null && nearMove != null && getMove(round).isNearPos(nearMove, dist);
   }
 
+  public int getDist(Player player, int round) {
+    LogMove nearMove = player.getMove(round);
+    return getMove(round) != null && nearMove != null ? getMove(round).getDist(nearMove) : Integer.MAX_VALUE;
+  }
+
   public boolean isNearby(MutableCollection<Move> possibles, int round, int dist) {
     return getMove(round) != null && getMove(round).isNearPos(possibles, dist);
+  }
+
+  public int getDist(MutableCollection<Move> possibles, int round) {
+    return getMove(round) != null ? getMove(round).getMinDist(possibles) : Integer.MAX_VALUE;
   }
 
   @Override

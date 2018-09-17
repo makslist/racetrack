@@ -232,7 +232,7 @@ public class Game implements Comparable<Game> {
     }
   }
 
-  public void refresh() {
+  public Game refresh() {
     StringBuilder apiUrl = new StringBuilder(API_URL).append(getId()).append("/").append(API_INFO);
     String response = KaroClient.callApi(apiUrl.toString());
 
@@ -256,6 +256,7 @@ public class Game implements Comparable<Game> {
       preview = jGame.getString(PREVIEW);
       location = jGame.getString(LOCATION);
     }
+    return this;
   }
 
   public int getId() {
@@ -334,22 +335,21 @@ public class Game implements Comparable<Game> {
   }
 
   public MutableList<Player> getActivePlayers() {
-    return getPlayers().select(p -> p.isActive()
-        && (p.getLastmove() == null || !p.getLastmove().equalsPos(getMap().getTilesAsMoves(MapTile.PARC))));
-  }
-
-  public MutableList<Player> getAlreadyMovedPlayers() {
-    return getActivePlayers().select(p -> p.getMove(getCurrentRound()) != null);
+    return getPlayers().select(p -> p.isActive());
   }
 
   public MutableList<Player> getNotYetMovedPlayers() {
     return getActivePlayers().select(p -> p.getMove(getCurrentRound()) == null);
   }
 
-  public MutableList<Player> getNearbyPlayers(Player player, int dist) {
+  public MutableList<Player> getNeareastPlayers(Player player, int count, int dist) {
     MutableCollection<Move> possibles = player.getPossibles();
-    return getActivePlayers()
-        .select(p -> player.isNearby(p, getCurrentRound() - 1, dist) || p.isNearby(possibles, getCurrentRound(), dist));
+    MutableList<Player> nearest = getActivePlayers().select(
+        p -> Math.min(player.getDist(p, getCurrentRound() - 1), p.getDist(possibles, getCurrentRound())) <= dist);
+    nearest.sortThis(
+        (o1, o2) -> Math.min(player.getDist(o1, getCurrentRound() - 1), o1.getDist(possibles, getCurrentRound()))
+            - Math.min(player.getDist(o2, getCurrentRound() - 1), o2.getDist(possibles, getCurrentRound())));
+    return nearest.take(count);
   }
 
   public int getActivePlayersCount() {

@@ -358,14 +358,13 @@ public class User {
   }
 
   public List<Game> getDranGames() {
-    String apiResponse = KaroClient.callApi(API_USER + "/" + id + "/" + API_USER_DRAN + ".json");
+    String apiResponse = KaroClient.callApi(API_USER + "/" + id + "/" + API_USER_DRAN);
     if (!apiResponse.isEmpty()) {
       try {
-        JSONObject obj = new JSONObject(apiResponse);
-        JSONArray reponse = obj.getJSONArray("games");
+        JSONArray reponse = new JSONArray(apiResponse);
         return getGames(reponse);
       } catch (JSONException je) {
-        logger.severe("Error while reading gamelist: " + je.getMessage());
+        logger.severe("Error while reading gamelist for user " + id + ": " + je.getMessage());
       }
     }
     return new FastList<>(0);

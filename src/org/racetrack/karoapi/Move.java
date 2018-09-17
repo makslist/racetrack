@@ -307,6 +307,17 @@ public class Move {
     return false;
   }
 
+  public int getMinDist(MutableCollection<Move> moves) {
+    int minDist = Integer.MAX_VALUE;
+    for (Move other : moves) {
+      int dist = getDist(other);
+      if (dist < minDist) {
+        minDist = dist;
+      }
+    }
+    return minDist;
+  }
+
   public boolean equalsStart(Move other) {
     return other != null && (x - xv) == (other.x - other.xv) && (y - yv) == (other.y - other.yv);
   }

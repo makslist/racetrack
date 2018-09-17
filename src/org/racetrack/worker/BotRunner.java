@@ -16,9 +16,7 @@ public class BotRunner implements Runnable {
 
   private static final Logger logger = Logger.getLogger(BotRunner.class.getName());
 
-  private int maxThreads = Integer.max(Settings.getInstance().getInt(Property.maxParallelGameThreads), 1);
-  private int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors());
-  private ExecutorService threadPool = Executors.newWorkStealingPool(minThreads);
+  private ExecutorService threadPool = Executors.newSingleThreadExecutor();
   private CompletionService<GameAction> gameTreeSearch = new ExecutorCompletionService<>(threadPool);
   private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -33,7 +31,7 @@ public class BotRunner implements Runnable {
 
   private BlockingQueue<Game> games = new PriorityBlockingQueue<>();
   private BlockingQueue<Chat> chatMsg = new LinkedBlockingQueue<>();
-  private Set<Integer> gamesInProcess = new ConcurrentSkipListSet<>();
+  private Set<Object> gamesInProcess = Collections.synchronizedSet(new ConcurrentSkipListSet<>());
 
   public BotRunner() {
     Settings settings = Settings.getInstance();
@@ -159,16 +157,11 @@ public class BotRunner implements Runnable {
           try {
             Player player = game.getPlayer(user);
             if (game.isDranPlayer(player)) {
-              gamesInProcess.add(game.getId());
-              gameTreeSearch.submit(new GTS(game, player));
+              if (gamesInProcess.add(game.getId())) {
+                gameTreeSearch.submit(new GTS(game, player));
+              }
             }
-          } catch (NullPointerException npe) {
-          } catch (OutOfMemoryError oome) {
-            // block game by letting it stay in process state
-            game = null;
-            System.gc();
-            // recover system and wait
-            Thread.sleep(15 * 1000);
+          } catch (NullPointerException | OutOfMemoryError npe) {
           }
         } catch (InterruptedException e) {
         }
@@ -183,13 +176,12 @@ public class BotRunner implements Runnable {
           GameAction action = gameTreeSearch.take().get();
 
           Game game = action.getGame();
+          gamesInProcess.remove(game.getId());
           if (action.isQuitGame()) {
-            gamesInProcess.remove(game.getId());
             karo.quitGame(game.getId());
           } else {
             Move move = action.getMove();
             if (move != null) {
-              gamesInProcess.remove(game.getId());
               if (action.hasComment()) {
                 karo.moveWithRadio(game.getId(), move, action.getComment());
               } else {
@@ -201,20 +193,18 @@ public class BotRunner implements Runnable {
                 }
               }
             } else {
-              gamesInProcess.remove(game.getId());
               karo.resetAfterCrash(game.getId());
+              games.put(game.refresh());
             }
           }
 
-          if (action.isCrashAhead()) {
-            games.addAll(user.getDranGames());
-          }
         } catch (InterruptedException | ExecutionException e) {
           logger.warning(e.getMessage());
+          e.printStackTrace();
         }
-        System.gc();
       }
     };
+
   }
 
   protected long computeDelaySeconds(int targetHour, int targetMin, int targetSec) {

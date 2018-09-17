@@ -240,7 +240,7 @@ public class Paths {
     return moveList;
   }
 
-  public MutableList<Move> getSucessors(int level, Move predecessor) {
+  public MutableList<Move> getSuccessors(int level, Move predecessor) {
     return getMovesOfRound(level).select(m -> m.getPreds().contains(predecessor));
   }
 

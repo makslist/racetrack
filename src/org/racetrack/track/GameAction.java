@@ -8,7 +8,6 @@ public class GameAction {
   private boolean quitGame;
   private Move move;
   private String comment;
-  private boolean crashAhead;
 
   public static GameAction quitGame(Game game) {
     GameAction action = new GameAction(game);
@@ -20,7 +19,7 @@ public class GameAction {
     this.game = game;
   }
 
-  public GameAction(Game game, Move move, String comment, boolean crashAhead) {
+  public GameAction(Game game, Move move, String comment) {
     this.game = game;
     this.comment = comment;
     this.move = move;
@@ -44,10 +43,6 @@ public class GameAction {
 
   public String getComment() {
     return comment;
-  }
-
-  public boolean isCrashAhead() {
-    return crashAhead;
   }
 
 }

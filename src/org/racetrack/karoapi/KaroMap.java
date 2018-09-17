@@ -27,6 +27,7 @@ public class KaroMap {
   private static final String MAPCODE = "mapcode";
   private static final String CPS = "cps";
   private static final String ACTIVE = "active";
+  private static final String NIGHT = "night";
 
   private static final Logger logger = Logger.getLogger(KaroMap.class.toString());
 
@@ -36,7 +37,7 @@ public class KaroMap {
   private static MutableMap<Integer, KaroMap> cachedMaps = Maps.mutable.empty();
 
   public static KaroMap get(int id) {
-    String mapString = KaroClient.callApi(KaroMap.API_MAP + "/" + id);
+    String mapString = KaroClient.callApi(KaroMap.API_MAP + "/" + id + ".json");
     try {
       return KaroMap.fromJSONString(mapString);
     } catch (JSONException jse) {
@@ -124,6 +125,7 @@ public class KaroMap {
   private char[][] map;
   private Set<MapTile> cps = Sets.mutable.empty();
   private boolean active = true;
+  private int night;
   private KaroMapSetting settings;
 
   public KaroMap(String mapcode) {
@@ -156,6 +158,7 @@ public class KaroMap {
       }
     }
     active = json.optBoolean(ACTIVE);
+    night = json.optInt(NIGHT);
   }
 
   public int getId() {
@@ -255,7 +258,7 @@ public class KaroMap {
   }
 
   public boolean isInNight() {
-    return !getTilesAsMoves(MapTile.NIGHT).isEmpty();
+    return 1 == night;
   }
 
   public boolean contains(Move move) {

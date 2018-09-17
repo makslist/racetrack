@@ -5,84 +5,74 @@ import java.util.concurrent.*;
 
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.map.*;
-import org.eclipse.collections.api.map.primitive.*;
 import org.eclipse.collections.impl.factory.*;
-import org.eclipse.collections.impl.factory.primitive.*;
 import org.eclipse.collections.impl.list.mutable.*;
-import org.eclipse.collections.impl.map.mutable.primitive.*;
+import org.eclipse.collections.impl.map.mutable.ConcurrentHashMap;
 import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.rules.*;
+import org.racetrack.track.Strategy.*;
 
 public class GTS implements Callable<GameAction> {
 
-  private static final int SAMPLE_SIZE = 100;
+  class Pair<K, V> {
 
-  private class PlayerMove {
+    K key;
+    V value;
 
-    private Player pl;
-    private Move move;
-
-    public PlayerMove(Player player, Move move) {
-      pl = player;
-      this.move = move;
+    private Pair(K key, V value) {
+      this.key = key;
+      this.value = value;
     }
 
     @Override
     public boolean equals(Object o) {
-      if (!(o instanceof PlayerMove))
-        return false;
-
-      PlayerMove pm = (PlayerMove) o;
-      if (!pl.equals(pm.pl))
-        return false;
-
-      return move.equals(pm.move);
+      if (this == o)
+        return true;
+      if (o instanceof Pair<?, ?>)
+        return this.key.equals(((Pair<?, ?>) o).key) && this.value.equals(((Pair<?, ?>) o).value);
+      return false;
     }
 
     @Override
     public String toString() {
-      return pl + "(" + move + ")";
+      return key + "(" + value + ")";
     }
 
   }
 
   private class GameState {
 
-    private MutableList<PlayerMove> moves = new FastList<>();
+    private MutableList<Pair<Player, Move>> moves = new FastList<>();
 
     private GameState() {
     }
 
-    private GameState(Player player, Move move) {
-      moves.add(new PlayerMove(player, move));
-    }
-
-    private GameState(MutableList<PlayerMove> moves) {
+    private GameState(MutableList<Pair<Player, Move>> moves) {
       this.moves = moves.clone();
     }
 
-    private boolean isOccupied(Move move) {
-      return moves.anySatisfy(pm -> pm.move.equalsPos(move));
+    private boolean isTaken(Move move) {
+      return moves.anySatisfy(m -> m.value.equalsPos(move));
     }
 
     private GameState with(Player player, Move move) {
-      moves.with(new PlayerMove(player, move));
+      moves.with(new Pair<Player, Move>(player, move));
       return this;
     }
 
     private GameState without(Player player) {
-      moves.removeIf(m -> m.pl.equals(player));
+      moves.removeIf(m -> m.key.equals(player));
       return this;
     }
 
     private Move getMove(Player player) {
-      MutableList<PlayerMove> movesOfPlayer = moves.select(pm -> pm.pl.equals(player));
-      return movesOfPlayer.isEmpty() ? null : movesOfPlayer.getFirst().move;
+      MutableList<Pair<Player, Move>> movesOfPlayer = moves.select(pm -> pm.key.equals(player));
+      return movesOfPlayer.isEmpty() ? null : movesOfPlayer.getFirst().value;
     }
 
     private MutableList<Player> getPlayers() {
-      return moves.collect(pl -> pl.pl);
+      return moves.collect(pl -> pl.key);
     }
 
     @Override
@@ -111,7 +101,7 @@ public class GTS implements Callable<GameAction> {
     @Override
     public String toString() {
       StringBuilder sb = new StringBuilder();
-      for (PlayerMove move : moves.sortThis((p1, p2) -> p1.pl.getName().compareTo(p2.pl.getName()))) {
+      for (Pair<Player, Move> move : moves.sortThis((p1, p2) -> p1.key.getName().compareTo(p2.key.getName()))) {
         if (sb.length() != 0) {
           sb.append(" ");
         }
@@ -122,70 +112,23 @@ public class GTS implements Callable<GameAction> {
 
   }
 
-  private class LeadingEdge implements Comparable<LeadingEdge> {
-
-    private Player player;
-    private int length;
-
-    private LeadingEdge(Player player, int length) {
-      this.player = player;
-      this.length = length;
-    }
-
-    @Override
-    public int compareTo(LeadingEdge o) {
-      return length - o.length;
-    }
-
-    @Override
-    public String toString() {
-      return player + "/" + length;
-    }
-
-  }
-
-  private enum DecisionStrategy {
-
-    MaxN, Paranoid, Offensive;
-
-    public static DecisionStrategy getStrategy(Player player, Player leader, int leadingEdge) {
-      if (leader == player) {
-        if (leadingEdge >= 1)
-          return Paranoid;
-        else
-          return MaxN;
-      } else {
-        if (leadingEdge >= 2)
-          return Offensive;
-        else
-          return MaxN;
-      }
-    }
-
-  }
-
   public static void main(String[] args) {
-    GTS max = new GTS(Game.get(108126), null);
+    GTS max = new GTS(Game.get(108195), null);
     max.call();
   }
 
   private Game game;
-  private GameRule rule;
-  private TSP tsp;
   private Player player;
 
-  private MutableObjectIntMap<Player> players = ObjectIntMaps.mutable.empty();
   private MutableMap<Player, Paths> paths = Maps.mutable.empty();
-  private IntObjectHashMap<Evaluation> maxes = new IntObjectHashMap<>();
+  private ConcurrentMutableMap<Integer, Evaluation> evaluations = new ConcurrentHashMap<>();
   private Random random = new Random();
 
-  private int maxThreads = Integer.max(Settings.getInstance().getInt(Property.maxParallelTourThreads), 1);
-  private int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors());
-  private ExecutorService threadPool = Executors.newWorkStealingPool(minThreads);
-  private CompletionService<Evaluation> completeSrv = new ExecutorCompletionService<>(threadPool);
+  private int minThreads = Integer.min(Settings.getInstance().getInt(Property.maxParallelTourThreads),
+      Runtime.getRuntime().availableProcessors() - 1);
+  private int maxThreads = Integer.max(minThreads, 1);
 
-  private Player leader;
-  private DecisionStrategy strategy;
+  private Strategy strategy;
   private int gameLength = Integer.MIN_VALUE;
   private int maxDepth = Integer.MAX_VALUE;
 
@@ -194,9 +137,6 @@ public class GTS implements Callable<GameAction> {
   public GTS(Game game, Player player) {
     this.game = game;
     this.player = player != null ? player : this.game.getDranPlayer();
-
-    rule = new GameRule(this.game);
-    tsp = new TSP(this.game);
   }
 
   @Override
@@ -204,80 +144,83 @@ public class GTS implements Callable<GameAction> {
     if (game.getMap().getSetting().isQuit())
       return GameAction.quitGame(game);
 
-    ExecutorService threadPool = Executors.newFixedThreadPool(4);
-    CompletionService<Paths> service = new ExecutorCompletionService<>(threadPool);
+    if (game.getPlayer(player.getId()).getPossibles().isEmpty()) {
+      System.out.println(game.getId() + " Crash.");
+      return new GameAction(game, null, null);
+    }
 
+    long duration = System.currentTimeMillis();
     int round = game.getCurrentRound();
 
-    MutableList<Player> actualPlayers = game.isStarted() ? game.getNearbyPlayers(player, 3)
+    MutableList<Player> actualPlayers = game.isStarted() ? game.getNeareastPlayers(player, 5, 3)
         : (game.getMap().isCpClustered(MapTile.START) && game.getActivePlayersCount() <= 5 ? game.getActivePlayers()
             : Lists.mutable.with(player));
 
+    GameRule rule = new GameRule(game);
+    TSP tsp = new TSP(game);
+
     MutableMap<Player, Future<Paths>> futurePaths = Maps.mutable.empty();
+    ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
+    CompletionService<Paths> pathService = new ExecutorCompletionService<>(threadPool);
     for (Player pl : actualPlayers) {
-      futurePaths.put(pl, service.submit(new PathFinder(game, pl, rule, tsp)));
+      futurePaths.put(pl, pathService.submit(new PathFinder(game, pl, rule, tsp)));
     }
-    MutableList<LeadingEdge> playerLength = Lists.mutable.empty();
+    MutableList<Pair<Player, Integer>> playerLength = Lists.mutable.empty();
     try {
       for (Player pl : actualPlayers) {
         Paths path = futurePaths.get(pl).get();
         int len = !path.isEmpty() ? path.getMinTotalLength() : Integer.MIN_VALUE;
         paths.put(pl, path);
-        playerLength.add(new LeadingEdge(pl, len));
+        playerLength.add(new Pair<Player, Integer>(pl, len));
         if (len > gameLength) {
           gameLength = len;
         }
       }
     } catch (InterruptedException | ExecutionException e) {
     }
+    threadPool.shutdownNow();
 
-    threadPool.shutdown();
+    // remove reference to rule class to enabled freeing memory
     rule = null;
 
-    System.out.println("Game: " + game.getId() + " " + game.getName());
-    System.out.println("Players: " + actualPlayers);
+    System.out.println(game.getId() + " " + game.getName() + " with players: " + actualPlayers);
     Paths playerPaths = paths.get(player);
     MutableList<Move> playerMoves = playerPaths.getMovesOfRound(round);
+
     if (playerMoves.size() == 1) {
-      System.out.println("Result: " + playerMoves.getFirst());
-      return new GameAction(game, playerMoves.getFirst(), playerPaths.getComment(), playerPaths.isCrashAhead());
+      System.out.println(game.getId() + " Result: " + playerMoves.getFirst() + " with only one move.");
+      return new GameAction(game, playerMoves.getFirst(), playerPaths.getComment());
     }
 
     if (actualPlayers.size() == 1) {
-      System.out.println("Only " + player.getName() + " is playing.");
+      Move maxSucc = playerPaths.getMovesOfRound(round).max((o1, o2) -> playerPaths.getSuccessors(round + 1, o1).size()
+          - playerPaths.getSuccessors(round + 1, o2).size());
+      System.out.println(game.getId() + " Result: " + maxSucc + " with only one player.");
+      return new GameAction(game, maxSucc, playerPaths.getComment());
     }
 
-    strategy = getStrategy(playerLength);
-    System.out.println("Selected strategy: " + strategy.name());
+    strategy = Strategy.get(player, playerLength);
 
-    maxDepth = calcMaxNDepth(actualPlayers, 200000, gameLength);
-    sampleSize = Math.max(SAMPLE_SIZE / Math.max(gameLength - maxDepth, 1), 2);
-    System.out.println("Gamelength: " + gameLength + " / MaxDepth: " + maxDepth + " / Samplesize: " + sampleSize);
+    maxDepth =
 
-    int playerpos = 0;
-    for (Player pl : actualPlayers) {
-      players.put(pl, playerpos++);
-    }
+        calcMaxNDepth(actualPlayers, 2000000, gameLength);
+    int playoutDepth = gameLength - maxDepth;
+    sampleSize = playoutDepth >= 50 || playoutDepth <= 5 ? 1 : 4;
 
     MutableList<Player> playersAlreadyMoved = actualPlayers.select(p -> p.getMove(round) != null);
     MutableList<Player> playersNotYetMoved = actualPlayers.reject(p -> p.getMove(round) != null);
-    GameState currentState = new GameState(playersAlreadyMoved.collect(p -> new PlayerMove(p, p.getLastmove())));
+    GameState currentState = new GameState(
+        playersAlreadyMoved.collect(p -> new Pair<Player, Move>(p, p.getLastmove())));
+
     Move bestMove = play(player, playersNotYetMoved, currentState, round);
+    threadPool.shutdownNow();
 
-    System.out.println("Actual players: " + actualPlayers + " with unique nodes: " + maxes.size());
-    System.out.println("Result: " + bestMove);
+    System.out
+        .println(game.getId() + " Result: " + bestMove + " players: " + actualPlayers + " with strategy : " + strategy);
+    duration = (System.currentTimeMillis() - duration) / 1000;
+    System.out.println(game.getId() + " " + duration + "s to calculate with " + evaluations.size() + " nodes.");
 
-    return new GameAction(game, bestMove, playerPaths.getComment(), playerPaths.isCrashAhead());
-  }
-
-  public DecisionStrategy getStrategy(MutableList<LeadingEdge> playerLength) {
-    if (playerLength.size() >= 2) {
-      playerLength.sortThis();
-      leader = playerLength.get(0).player;
-      int leadingEdge = Math.abs(playerLength.get(0).length - playerLength.get(1).length);
-      return DecisionStrategy.getStrategy(player, leader, leadingEdge);
-    }
-    return DecisionStrategy.MaxN;
+    return new GameAction(game, bestMove, playerPaths.getComment());
   }
 
   public int calcMaxNDepth(MutableList<Player> actualPlayers, int maxNodes, int maxRound) {
@@ -285,11 +228,10 @@ public class GTS implements Callable<GameAction> {
       long nodeCount = 1;
       for (Player player : actualPlayers) {
         nodeCount *= Math.max(paths.get(player).getMovesOfRound(i).size(), 1);
-        if (nodeCount > maxNodes) {
-          System.out.println("NodeCount: " + nodeCount);
-          return i - 1;
-        }
       }
+      nodeCount = (long) (nodeCount * Math.pow(actualPlayers.size(), 2));
+      if (nodeCount > maxNodes)
+        return i - 1;
     }
     return maxRound;
   }
@@ -297,105 +239,117 @@ public class GTS implements Callable<GameAction> {
   private Move play(Player player, MutableList<Player> playersToMove, GameState state, int round) {
     Paths path = paths.get(player);
     MutableMap<Evaluation, Move> moveRatings = Maps.mutable.empty();
-    for (Move move : path.getMovesOfRound(round).reject(m -> state.isOccupied(m))) {
-      Evaluation maxn = play(playersToMove.reject(p -> p.equals(player)), state.with(player, move), round, null);
-      moveRatings.put(maxn, move);
-      System.out.println("Move: " + move + " with rating: " + maxn);
+    for (Move move : path.getMovesOfRound(round).reject(m -> state.isTaken(m))) {
+      moveRatings.put(play(playersToMove.reject(p -> p.equals(player)), state.with(player, move), round, null), move);
       state.without(player);
     }
-    Evaluation max = getEvaluation(player, moveRatings.keySet());
-    return moveRatings.get(max);
+
+    return moveRatings.get(strategy.evaluate(player, new FastList<>(moveRatings.keySet())));
   }
 
   private Evaluation play(MutableList<Player> playersToMove, GameState state, int round, GameState lastRound) {
     if (playersToMove.isEmpty())
       return playNextRound(state, round);
 
-    MutableList<Evaluation> innerRoundValues = Lists.mutable.empty();
+    MutableList<Evaluation> evals = Lists.mutable.empty();
     for (Player pl : playersToMove) {
       Paths path = paths.get(pl);
-      MutableList<Move> moves = lastRound != null ? path.getSucessors(round, lastRound.getMove(pl))
+      MutableList<Move> moves = lastRound != null ? path.getSuccessors(round, lastRound.getMove(pl))
           : path.getMovesOfRound(round);
 
-      MutableList<Evaluation> moveMaxValues = Lists.mutable.empty();
-      if (moves.isEmpty()) { // FINISHED
+      MutableList<Evaluation> playerEvals = Lists.mutable.empty();
+      if (moves.isEmpty()) { // GAME END
         Evaluation value = play(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
-        value.setValue(pl, gameLength - (round - 1));
-        moveMaxValues.add(value);
+        playerEvals.add(strategy.setValue(value, pl, gameLength - (round - 1)));
       } else {
-        MutableList<Move> movesNonBlocked = moves.reject(m -> state.isOccupied(m));
+        MutableList<Move> movesNonBlocked = moves.reject(m -> state.isTaken(m));
         if (movesNonBlocked.isEmpty()) { // BLOCK
           Evaluation value = play(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
-          value.setValue(pl, round - gameLength);
-          moveMaxValues.add(value);
+          playerEvals.add(strategy.setValue(value, pl, round - gameLength));
         } else {
-          for (Move move : movesNonBlocked) {
-            moveMaxValues.add(play(playersToMove.reject(p -> p.equals(pl)), state.with(pl, move), round, lastRound));
-            state.without(pl);
+
+          if (playersToMove.size() == 1) {
+            @SuppressWarnings("serial")
+            Collection<RecursiveTask<Evaluation>> results = ForkJoinTask
+                .invokeAll(movesNonBlocked.collect(move -> new RecursiveTask<Evaluation>() {
+                  @Override
+                  protected Evaluation compute() {
+                    return playNextRound(state.clone().with(pl, move), round);
+                  }
+                }));
+            playerEvals.add(strategy.evaluate(player, new FastList<>(results).collect(t -> {
+              try {
+                return t.get();
+              } catch (InterruptedException | ExecutionException e) {
+              }
+              return null;
+            })));
+          } else {
+            for (Move move : movesNonBlocked) {
+              playerEvals.add(play(playersToMove.reject(p -> p.equals(pl)), state.with(pl, move), round, lastRound));
+              state.without(pl);
+            }
           }
+
         }
       }
-      innerRoundValues.add(getEvaluation(pl, moveMaxValues));
+      evals.add(strategy.evaluate(pl, playerEvals));
     }
-    return Evaluation.avg(innerRoundValues, players);
+    return strategy.merge(evals);
   }
 
-  private Evaluation getEvaluation(Player pl, Collection<Evaluation> evals) {
-    if (pl == player)
-      return strategy == DecisionStrategy.Offensive ? Evaluation.min(evals, leader) : Evaluation.max(evals, pl);
-    else
-      return strategy == DecisionStrategy.Paranoid ? Evaluation.min(evals, player) : Evaluation.max(evals, pl);
-  }
-
+  @SuppressWarnings("serial")
   public Evaluation playNextRound(GameState state, int round) {
-    if (maxes.containsKey(state.hashCode()))
-      return maxes.get(state.hashCode());
+    if (evaluations.containsKey(state.hashCode()))
+      return evaluations.get(state.hashCode());
 
+    Evaluation eval;
     if (round < maxDepth) {
-      Evaluation maxnValues = play(state.getPlayers(), new GameState(), round + 1, state);
-      maxes.put(state.hashCode(), maxnValues);
-      return maxnValues;
+      eval = play(state.getPlayers(), new GameState(), round + 1, state);
     } else {
-      List<Future<Evaluation>> futures = Lists.mutable.empty();
+      List<RecursiveTask<Evaluation>> futures = Lists.mutable.empty();
       for (int i = 0; i < sampleSize; i++) {
-        futures.add(completeSrv.submit(() -> playOut(state.getPlayers(), new GameState(), round + 1, state)));
+        futures.add(new RecursiveTask<Strategy.Evaluation>() {
+          @Override
+          protected Evaluation compute() {
+            return playOut(state.getPlayers(), new GameState(), round + 1, state);
+          }
+        });
       }
-      MutableList<Evaluation> simValues = Lists.mutable.empty();
-      for (Future<Evaluation> future : futures) {
+
+      MutableList<RecursiveTask<Evaluation>> results = new FastList<>(ForkJoinTask.invokeAll(futures));
+      eval = strategy.merge(results.collect(t -> {
         try {
-          simValues.add(future.get(5, TimeUnit.MINUTES));
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+          return t.get();
+        } catch (InterruptedException | ExecutionException e) {
         }
-      }
-      Evaluation eval = Evaluation.avg(simValues, players);
-      maxes.put(state.hashCode(), eval);
-      return eval;
+        return null;
+      }));
     }
+    evaluations.put(state.hashCode(), eval);
+    return eval;
   }
 
-  private Evaluation playOut(MutableList<Player> playersToMove, GameState occupied, int round, GameState lastRound) {
+  private Evaluation playOut(MutableList<Player> playersToMove, GameState state, int round, GameState lastRound) {
     if (playersToMove.isEmpty())
-      return lastRound.isEmpty() ? new Evaluation(players)
-          : playOut(occupied.getPlayers(), new GameState(), round + 1, occupied);
+      return lastRound.isEmpty() ? strategy.initEval() : playOut(state.getPlayers(), new GameState(), round + 1, state);
 
     Player player = playersToMove.get(random.nextInt(playersToMove.size()));
     Paths path = paths.get(player);
-    MutableList<Move> levelMoves = lastRound != null ? path.getSucessors(round, lastRound.getMove(player))
+    MutableList<Move> moves = lastRound != null ? path.getSuccessors(round, lastRound.getMove(player))
         : path.getMovesOfRound(round);
 
-    if (levelMoves.isEmpty()) { // GAME END
-      Evaluation value = playOut(playersToMove.reject(p -> p.equals(player)), occupied, round, lastRound);
-      value.setValue(player, 2 * (gameLength - (round - 1)));
-      return value;
+    if (moves.isEmpty()) { // GAME END
+      Evaluation eval = playOut(playersToMove.reject(p -> p.equals(player)), state, round, lastRound);
+      return strategy.setValue(eval, player, gameLength - (round - 1));
     } else {
-      MutableList<Move> movesNonBlocked = levelMoves.reject(m -> occupied.isOccupied(m));
+      MutableList<Move> movesNonBlocked = moves.reject(m -> state.isTaken(m));
       if (movesNonBlocked.isEmpty()) { // BLOCK
-        Evaluation value = playOut(playersToMove.reject(p -> p.equals(player)), occupied, round, lastRound);
-        value.setValue(player, 2 * ((round - 1) - gameLength));
-        return value;
+        Evaluation eval = playOut(playersToMove.reject(p -> p.equals(player)), state, round, lastRound);
+        return strategy.setValue(eval, player, round - gameLength);
       } else {
         Move move = movesNonBlocked.get(random.nextInt(movesNonBlocked.size()));
-        return playOut(playersToMove.reject(p -> p.equals(player)), occupied.with(player, move), round, lastRound);
+        return playOut(playersToMove.reject(p -> p.equals(player)), state.with(player, move), round, lastRound);
       }
     }
   }
