@@ -1,6 +1,5 @@
 package org.racetrack.karoapi;
 
-import java.text.*;
 import java.util.*;
 
 import org.eclipse.collections.api.collection.*;
@@ -8,109 +7,93 @@ import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.json.*;
-import org.racetrack.track.*;
 
 public class Player {
+
+  public enum Field {
+    id, name, color, moved, rank, status, moveCount, crashCount, checkedCps, missingCps, motion, possibles, moves;
+  }
 
   protected enum Status {
     OK, LEFT, KICKED
   }
 
-  private static final String ID = "id";
-  private static final String NAME = "name";
-  private static final String COLOR = "color";
-  private static final String DRAN = "dran";
-  private static final String MOVED = "moved";
-  private static final String POSITION = "position";
-  private static final String STATUS = "status";
-  private static final String MOVE_COUNT = "moveCount";
-  private static final String CRASH_COUNT = "crashCount";
-  private static final String CHECKED_CPS = "checkedCps";
-  private static final String MISSING_CPS = "missingCps";
-  private static final String LASTMOVE = "lastmove";
-  private static final String POSSIBLES = "possibles";
-  private static final String MOVES = "moves";
-
-  public static Map<Integer, Player> getPlayers(JSONArray array) {
+  public static Map<Integer, Player> getPlayers(Game game, JSONArray array) {
     Map<Integer, Player> players = Maps.mutable.empty();
     for (int i = 0; i < array.length(); i++) {
-      Player player = new Player((JSONObject) array.get(i));
+      Player player = new Player(game, (JSONObject) array.get(i));
       players.put(player.getId(), player);
     }
     return players;
   }
 
   public static Player getNew(int userId) {
-    return new Player(userId);
+    Player player = new Player();
+    player.id = userId;
+    return player;
+  }
+
+  public static Player getFakePlayer(Game game, int id, MutableCollection<MapTile> missingCps,
+      Collection<Move> possibles) {
+    Player player = new Player();
+    player.id = id;
+    player.missingCps = missingCps;
+    player.possibles = new FastList<>(possibles);
+    player.status = Status.OK;
+    player.moves = new FastList<>(0);
+    player.moveCount = 0;
+    player.crashCount = 0;
+    return player;
   }
 
   protected int id;
   private String name;
+  @SuppressWarnings("unused")
   private String color;
-  protected boolean dran;
+  @SuppressWarnings("unused")
   private boolean moved;
-  private int position;
+  private int rank;
   protected Status status;
   protected int moveCount;
   protected int crashCount;
+  @SuppressWarnings("unused")
   private MutableCollection<MapTile> checkedCps = new FastList<>(0);
   protected MutableCollection<MapTile> missingCps = new FastList<>(0);
-  private LogMove lastmove;
+  private LogMove motion;
   protected MutableCollection<Move> possibles = new FastList<>(0);
   protected MutableList<LogMove> moves;
+  protected Game game;
   private User user;
 
-  protected Player() {
+  private Player() {
   }
 
-  public Player(int id) {
-    this.id = id;
-  }
-
-  public Player(JSONObject json) {
-    id = json.getInt(ID);
-    name = json.getString(NAME);
-    color = json.getString(COLOR);
-    dran = json.getBoolean(DRAN);
-    moved = json.getBoolean(MOVED);
-    position = json.getInt(POSITION);
-    status = Status.valueOf(json.getString(STATUS).toUpperCase());
-    moveCount = json.getInt(MOVE_COUNT);
-    crashCount = json.getInt(CRASH_COUNT);
-    checkedCps = getCps(json.optJSONArray(CHECKED_CPS));
-    missingCps = getCps(json.optJSONArray(MISSING_CPS));
-    if (json.has(MOVES)) {
-      moves = LogMove.getPreviousMoves(json.getJSONArray(MOVES));
-      if (json.has(LASTMOVE)) {
-        lastmove = new LogMove(json.getJSONObject(LASTMOVE));
-      }
-      int indexOfLastMove = moves.indexOf(lastmove);
-      if (indexOfLastMove >= 0) {
-        lastmove = moves.get(indexOfLastMove);
+  public Player(Game game, JSONObject json) {
+    this.game = game;
+    id = json.getInt(Field.id.toString());
+    name = json.getString(Field.name.toString());
+    color = json.getString(Field.color.toString());
+    moved = json.getBoolean(Field.moved.toString());
+    rank = json.getInt(Field.rank.toString());
+    status = Status.valueOf(json.getString(Field.status.toString()).toUpperCase());
+    moveCount = json.getInt(Field.moveCount.toString());
+    crashCount = json.getInt(Field.crashCount.toString());
+    checkedCps = getCps(json.optJSONArray(Field.checkedCps.toString()));
+    missingCps = getCps(json.optJSONArray(Field.missingCps.toString()));
+    if (json.has(Field.moves.toString())) {
+      moves = LogMove.getPreviousMoves(json.getJSONArray(Field.moves.toString()));
+      if (json.has(Field.motion.toString())) {
+        motion = new LogMove(json.getJSONObject(Field.motion.toString()));
+        int indexOfLastMove = moves.indexOf(motion);
+        if (indexOfLastMove >= 0) {
+          motion = moves.get(indexOfLastMove);
+        }
       }
     }
 
-    if (json.has(POSSIBLES)) {
-      possibles = LogMove.getPossibleMoves(json.getJSONArray(POSSIBLES), lastmove);
+    if (json.has(Field.possibles.toString())) {
+      possibles = Move.getPossibleMoves(json.getJSONArray(Field.possibles.toString()), motion);// lastmove);
     }
-  }
-
-  public Player(Player player) {
-    id = player.id;
-    name = player.name;
-    color = player.color;
-    dran = player.dran;
-    moved = player.moved;
-    position = player.position;
-    status = player.status;
-    moveCount = player.moveCount;
-    crashCount = player.crashCount;
-    checkedCps = player.checkedCps;
-    missingCps = player.missingCps;
-    lastmove = player.lastmove;
-    possibles = player.possibles;
-    moves = player.moves;
-    user = player.user;
   }
 
   private MutableCollection<MapTile> getCps(JSONArray array) {
@@ -132,56 +115,34 @@ public class Player {
     return name;
   }
 
-  public String getColor() {
-    return color;
-  }
-
-  public boolean isDran() {
-    return dran;
-  }
-
-  public boolean isMoved() {
-    return moved;
-  }
-
-  public int getPosition() {
-    return position;
-  }
-
   public boolean isActive() {
-    return status.equals(Status.OK) && position == 0;
+    return status.equals(Status.OK) && rank == 0;
   }
 
   public boolean hasFinished() {
-    return status.equals(Status.OK) && position > 0;
+    return status.equals(Status.OK) && rank > 0;
   }
 
   public int getMoveCount() {
     return moveCount;
   }
 
-  public int getCrashCount() {
-    return crashCount;
-  }
-
-  public MutableCollection<MapTile> getCheckedCps() {
-    return checkedCps;
-  }
-
   public MutableCollection<MapTile> getMissingCps() {
     return missingCps;
   }
 
-  public LogMove getLastmove() {
-    return lastmove;
+  public LogMove getMotion() {
+    return motion;
   }
 
   public MutableCollection<Move> getPossibles() {
+    if (motion == null && possibles.isEmpty()) {
+      System.out.println("Bug still exists!");
+      MutableList<Move> startMoves = game.getMap().getTilesAsMoves(MapTile.START);
+      MutableList<Move> motions = game.getActivePlayers().select(p -> p.moveCount > 0).collect(p -> p.getMotion());
+      return startMoves.reject(m -> m.equalsPos(motions));
+    }
     return possibles;
-  }
-
-  public Paths getPossiblesAsPaths(Game game) {
-    return new Paths(game, possibles);
   }
 
   public MutableList<LogMove> getMoves() {
@@ -198,34 +159,7 @@ public class Player {
     return null;
   }
 
-  public double getAvgSpeed() {
-    int moveCount = 0;
-    double trackLength = 0d;
-    for (LogMove move : moves) {
-      if (move.isMoving()) {
-        moveCount++;
-        trackLength += move.getSpeed();
-      }
-    }
-    return trackLength / moveCount;
-  }
-
-  public String getTrackAnalysis() {
-    int moveCount = 0;
-    double trackLength = 0d;
-    for (LogMove move : moves) {
-      if (move.isMoving()) {
-        moveCount++;
-        trackLength += move.getSpeed();
-      }
-    }
-    NumberFormat formatter = new DecimalFormat("#0.00");
-    return getName() + ": " + (moveCount > 0
-        ? (formatter.format(trackLength / (moveCount * moveCount)) + "/" + formatter.format(trackLength / moveCount))
-        : "0/0") + "[" + moveCount + "]";
-  }
-
-  public User getUser() {
+  private User getUser() {
     if (user == null) {
       user = User.get(id);
     }
@@ -236,27 +170,18 @@ public class Player {
     return getUser() != null ? getUser().isBot() : false;
   }
 
-  @Override
-  public boolean equals(Object obj) {
-    return id == ((Player) obj).id;
-  }
-
-  public boolean isNearby(Player player, int round, int dist) {
-    LogMove nearMove = player.getMove(round);
-    return getMove(round) != null && nearMove != null && getMove(round).isNearPos(nearMove, dist);
-  }
-
   public int getDist(Player player, int round) {
-    LogMove nearMove = player.getMove(round);
+    Move nearMove = player.getMove(round);
     return getMove(round) != null && nearMove != null ? getMove(round).getDist(nearMove) : Integer.MAX_VALUE;
-  }
-
-  public boolean isNearby(MutableCollection<Move> possibles, int round, int dist) {
-    return getMove(round) != null && getMove(round).isNearPos(possibles, dist);
   }
 
   public int getDist(MutableCollection<Move> possibles, int round) {
     return getMove(round) != null ? getMove(round).getMinDist(possibles) : Integer.MAX_VALUE;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return id == ((Player) obj).id;
   }
 
   @Override

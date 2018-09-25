@@ -27,7 +27,7 @@ public class MapAlyzor {
   public static void main(String args[]) {
     for (KaroMap map : KaroMap.getAll()) {
       try {
-        FakeGame game = new FakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2);
+        Game game = Game.getFakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2);
 
         MapAlyzor alyzor = new MapAlyzor(map, game, 16);
         alyzor.run();
@@ -38,30 +38,29 @@ public class MapAlyzor {
   }
 
   private KaroMap map;
-  private FakeGame game;
+  private Game game;
   private String fileName;
   private int scale;
 
-  public MapAlyzor(int mapId, FakeGame game, int mapScale) {
+  public MapAlyzor(int mapId, Game game, int mapScale) {
     this(KaroMap.get(mapId), game, mapScale);
   }
 
-  public MapAlyzor(KaroMap map, FakeGame game, int mapScale) {
+  public MapAlyzor(KaroMap map, Game game, int mapScale) {
     this.map = map;
     String filteredFilename = !map.getName().equals("") ? map.getName() : String.valueOf(map.getId());
     NumberFormat nf = new DecimalFormat("0000");
     fileName = "./" + nf.format(map.getId()) + " - " + filteredFilename.replaceAll("[^a-zA-Z0-9.-]", "_");
 
-    this.game = game != null ? game : new FakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2);
+    this.game = game != null ? game : Game.getFakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2);
     scale = mapScale;
   }
 
   public void run() {
     ExecutorService threadPool = Executors.newWorkStealingPool();
 
-    Future<Paths> futurePath = threadPool.submit(new MapAlyzePathFinder(game, game.getPlayer()));
+    Future<Paths> futurePath = threadPool.submit(new PathFinder(game, game.getNext()));
     try {
-      // System.out.println("\nAnalyzing map " + map.getId() + " (" + map.getName() + ")");
       Paths paths = futurePath.get();
 
       writeAnalyzeFile(paths);

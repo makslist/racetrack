@@ -70,7 +70,7 @@ public class BotRunner implements Runnable {
 
     // backup thread in case webclient crashed
     scheduler.scheduleWithFixedDelay(() -> {
-      games.addAll(user.getDranGames());
+      games.addAll(user.getNextGames());
     }, 0, 8, TimeUnit.MINUTES);
 
     // show bot as active in chat by updating chat-site
@@ -156,7 +156,7 @@ public class BotRunner implements Runnable {
 
           try {
             Player player = game.getPlayer(user);
-            if (game.isDranPlayer(player)) {
+            if (game.isNextPlayer(player)) {
               if (gamesInProcess.add(game.getId())) {
                 gameTreeSearch.submit(new GTS(game, player));
               }

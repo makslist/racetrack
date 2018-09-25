@@ -8,6 +8,7 @@ import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.set.primitive.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
+import org.json.*;
 
 public class Move {
 
@@ -22,6 +23,13 @@ public class Move {
 
   public static int getMoveHash(int x, int y, int xv, int yv) {
     return (yv & 63) << 26 | (xv & 63) << 20 | (y & 1023) << 10 | (x & 1023);
+  }
+
+  public static MutableCollection<Move> getPossibleMoves(JSONArray json, Move previous) {
+    MutableCollection<Move> moves = new FastList<>();
+    json.forEach(jsonObj -> moves.add(new LogMove((JSONObject) jsonObj, previous)));
+    moves.forEach(move -> move.pathLen = 1);
+    return moves;
   }
 
   protected short x;

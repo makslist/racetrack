@@ -136,7 +136,7 @@ public class GTS implements Callable<GameAction> {
 
   public GTS(Game game, Player player) {
     this.game = game;
-    this.player = player != null ? player : this.game.getDranPlayer();
+    this.player = player != null ? player : this.game.getNext();
   }
 
   @Override
@@ -157,11 +157,11 @@ public class GTS implements Callable<GameAction> {
             : Lists.mutable.with(player));
 
     GameRule rule = new GameRule(game);
-    TSP tsp = new TSP(game);
 
     MutableMap<Player, Future<Paths>> futurePaths = Maps.mutable.empty();
     ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
     CompletionService<Paths> pathService = new ExecutorCompletionService<>(threadPool);
+    TSP tsp = new TSP();
     for (Player pl : actualPlayers) {
       futurePaths.put(pl, pathService.submit(new PathFinder(game, pl, rule, tsp)));
     }
@@ -201,16 +201,14 @@ public class GTS implements Callable<GameAction> {
 
     strategy = Strategy.get(player, playerLength);
 
-    maxDepth =
-
-        calcMaxNDepth(actualPlayers, 2000000, gameLength);
+    maxDepth = calcMaxNDepth(actualPlayers, 2000000, gameLength);
     int playoutDepth = gameLength - maxDepth;
     sampleSize = playoutDepth >= 50 || playoutDepth <= 5 ? 1 : 4;
 
     MutableList<Player> playersAlreadyMoved = actualPlayers.select(p -> p.getMove(round) != null);
     MutableList<Player> playersNotYetMoved = actualPlayers.reject(p -> p.getMove(round) != null);
     GameState currentState = new GameState(
-        playersAlreadyMoved.collect(p -> new Pair<Player, Move>(p, p.getLastmove())));
+        playersAlreadyMoved.collect(p -> new Pair<Player, Move>(p, p.getMotion())));
 
     Move bestMove = play(player, playersNotYetMoved, currentState, round);
     threadPool.shutdownNow();

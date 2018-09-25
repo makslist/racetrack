@@ -19,15 +19,13 @@ import org.racetrack.karoapi.*;
 public class Paths {
 
   public static Paths getCopy(Paths path) {
-    Paths copy = new Paths(path.game);
-    copy.crashAhead = path.crashAhead;
+    Paths copy = new Paths();
     copy.comment = path.comment;
     return copy;
   }
 
   public static Paths onlyFiltered(Paths path, MutableCollection<Move> filtered) {
-    Paths copy = new Paths(path.game);
-    copy.crashAhead = path.crashAhead;
+    Paths copy = new Paths();
     copy.comment = path.comment;
     copy.moves = filtered;
     return copy;
@@ -59,40 +57,16 @@ public class Paths {
     return previousLevel;
   }
 
-  private Game game;
   private MutableCollection<Move> moves = new FastList<>(0);
   private String comment = "";
-  private boolean crashAhead = false;
 
   private MutableIntObjectMap<MutableList<Move>> roundMoves = new IntObjectHashMap<>();
 
-  public Paths(Game game) {
-    this.game = game;
+  public Paths() {
   }
 
-  public Paths(Game game, boolean crashAhead) {
-    this.game = game;
-    this.crashAhead = crashAhead;
-  }
-
-  public Paths(Game game, MutableCollection<Move> moves) {
-    this.game = game;
+  public Paths(MutableCollection<Move> moves) {
     this.moves = moves;
-    if (moves.isEmpty()) {
-      crashAhead = true;
-    }
-  }
-
-  public Game getGame() {
-    return game;
-  }
-
-  public int getGameId() {
-    return game.getId();
-  }
-
-  public int getMapId() {
-    return game.getMapId();
   }
 
   public boolean add(Move move) {
@@ -267,10 +241,6 @@ public class Paths {
       }
     }
     return map;
-  }
-
-  public boolean isCrashAhead() {
-    return crashAhead;
   }
 
   public boolean hasComment() {

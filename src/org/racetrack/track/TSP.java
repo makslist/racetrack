@@ -11,7 +11,6 @@ import org.eclipse.collections.impl.list.mutable.*;
 import org.eclipse.collections.impl.map.mutable.*;
 import org.eclipse.collections.impl.map.mutable.primitive.*;
 import org.racetrack.karoapi.*;
-import org.racetrack.worker.*;
 
 public class TSP {
 
@@ -19,12 +18,13 @@ public class TSP {
   private static final int MAX_MOVE = 7000;
   private static final int MAX_TOURS = 200;
 
-  private Game game;
   private Function<Edge, Short> edgeRuler;
 
   private SynchronizedMutableMap<Edge, ReadWriteLock> edgeLocks = new SynchronizedMutableMap<>(
       new UnifiedMap<Edge, ReadWriteLock>());
   private MutableObjectShortMap<Edge> distances = new ObjectShortHashMap<Edge>();
+
+  private ExecutorService executor = Executors.newWorkStealingPool();
 
   private Function<Edge, Short> distanceRuler = edge -> {
     ReadWriteLock rwLock = edgeLocks.getIfAbsentPut(edge, new SeqLock(false));
@@ -45,17 +45,13 @@ public class TSP {
     }
   };
 
-  public TSP(Game game) {
-    this.game = game;
+  public TSP() {
   }
 
-  public MutableList<Tour> solve(MutableCollection<MapTile> missingCps, Function<Edge, Short> edgeRuler,
-      boolean printProgress) {
+  public MutableList<Tour> solve(MutableCollection<MapTile> missingCps, Function<Edge, Short> edgeRuler) {
     this.edgeRuler = edgeRuler;
     if (missingCps.isEmpty())
       return Tour.SINGLE_FINISH_TOUR;
-
-    ExecutorService executor = Executors.newWorkStealingPool();
 
     for (MapTile cp : missingCps) {
       for (MapTile other : missingCps) {
@@ -67,20 +63,16 @@ public class TSP {
     }
 
     MutableObjectShortMap<Edge> startDistances = new ObjectShortHashMap<Edge>();
-    CliProgressBar progress = CliProgressBar.getTourBar(game, missingCps.size());
     for (MapTile cp : missingCps) {
       Edge start = new Edge(MapTile.START, cp);
       try {
         startDistances.put(start, executor.submit(() -> edgeRuler.apply(start)).get());
-        if (printProgress) {
-          progress.incProgress();
-        }
       } catch (InterruptedException | ExecutionException e) {
       }
     }
 
     MutableList<Tour> tours = new FastList<>();
-    buildTours(new Tour(edge -> startDistances.get(edge), distanceRuler), missingCps, executor, tours);
+    buildTours(new Tour(edge -> startDistances.get(edge), distanceRuler), missingCps, tours);
 
     try {
       executor.shutdown();
@@ -93,8 +85,7 @@ public class TSP {
         .take(MAX_TOURS);
   }
 
-  private void buildTours(Tour tour, MutableCollection<MapTile> missingCps, ExecutorService executor,
-      MutableList<Tour> tours) {
+  private void buildTours(Tour tour, MutableCollection<MapTile> missingCps, MutableList<Tour> tours) {
     for (MapTile cp : missingCps) {
       Tour tourSection = new Tour(tour, cp);
       MutableList<MapTile> restCps = new FastList<>(missingCps).without(cp);
@@ -102,7 +93,7 @@ public class TSP {
         tours.add(tourSection);
         executor.submit(tourSection.evaluate());
       } else {
-        buildTours(tourSection, restCps, executor, tours);
+        buildTours(tourSection, restCps, tours);
       }
     }
   }

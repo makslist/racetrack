@@ -20,7 +20,7 @@ public class Starter {
   private static final int SCALE_MAX = 64;
 
   private enum Param {
-    BOT("bot"), PROP("prop"), GUI("gui"), ANALYZE("analyze"), MAPALYZE("mapalyze"), DIR("dir"), MAPSCALE("mapscale");
+    BOT("bot"), PROP("prop"), GUI("gui"), MAPALYZE("mapalyze"), DIR("dir"), MAPSCALE("mapscale");
 
     private String param;
 
@@ -44,8 +44,6 @@ public class Starter {
   public static void main(String[] args) {
     boolean startBot = false;
     boolean startGui = false;
-    boolean startKanalyzor = false;
-    MutableList<Integer> analyzeGames = Lists.mutable.empty();
 
     boolean startMapalyzor = false;
     MutableList<String> analyzeMaps = Lists.mutable.empty();
@@ -67,21 +65,6 @@ public class Starter {
           break;
         case GUI:
           startGui = true;
-          break;
-        case ANALYZE:
-          startKanalyzor = true;
-          if (param.length >= 2) {
-            analyzeGames = new FastList<>(0);
-            String[] gameIds = param[1].split("[;/]");
-            for (String gameId : gameIds) {
-              try {
-                Integer id = Integer.valueOf(gameId);
-                analyzeGames.add(id);
-              } catch (NumberFormatException nfe) {
-                System.out.println("Invalid GameID: " + gameId);
-              }
-            }
-          }
           break;
         case MAPALYZE:
           startMapalyzor = true;
@@ -148,12 +131,6 @@ public class Starter {
           frame.setVisible(true);
         }
       });
-    } else if (startKanalyzor) {
-      if (analyzeGames.isEmpty()) {
-        System.out.println("Please provide parameters: e.g. -" + Param.ANALYZE.toString() + ":100000;100001;100002");
-      } else {
-        runKanalysator(analyzeGames);
-      }
     } else if (startMapalyzor) {
       if (analyzeMaps.isEmpty()) {
         System.out.println("Please provide parameters: e.g. -" + Param.MAPALYZE.toString() + ":1;Tetris.json" + " [-"
@@ -172,8 +149,6 @@ public class Starter {
       help.append("\t-").append(Param.PROP.toString()).append(":file.prop" + "\t\t\t")
           .append("Provide a property file with settings for the bot" + "\n\n");
 
-      help.append("-").append(Param.ANALYZE.toString()).append(":(gameId[(;|/)gameId])" + "\t\t")
-          .append("Game-Analyzer" + "\n\n");
       help.append("-").append(Param.MAPALYZE.toString()).append(":(mapId[(;|/)map.json])" + "\t\t")
           .append("Map-Analyzer" + "\n");
       help.append("\t\t\t\t\t" + "For json files, provide relative path to map-file from jar)" + "\n");
@@ -198,13 +173,6 @@ public class Starter {
     }
   }
 
-  private static void runKanalysator(MutableList<Integer> analyzeGames) {
-    System.out.println("Kanalysator 2.0\n");
-    for (Integer gameId : analyzeGames) {
-      GameAnalyzer.completedGame(gameId);
-    }
-  }
-
   private static void runMapalysor(MutableList<String> analyzeMaps, int mapScale, Dir direction) {
     System.out.println("MapAlyzor 2.0");
 
@@ -212,14 +180,14 @@ public class Starter {
       try {
         int mapId = Integer.valueOf(map);
         KaroMap karoMap = KaroMap.get(mapId);
-        FakeGame fakeGame = new FakeGame(karoMap, RuleType.STANDARD, true, direction, Crash.forbidden, 2);
+        Game fakeGame = Game.getFakeGame(karoMap, RuleType.STANDARD, true, direction, Crash.forbidden, 2);
         MapAlyzor alyzor = new MapAlyzor(karoMap, fakeGame, mapScale);
         alyzor.run();
       } catch (NumberFormatException nfe) {
         File mapFile = new File(map);
         if (mapFile.exists()) {
           KaroMap karoMap = KaroMap.get(mapFile);
-          FakeGame fakeGame = new FakeGame(karoMap, RuleType.STANDARD, true, direction, Crash.forbidden, 2);
+          Game fakeGame = Game.getFakeGame(karoMap, RuleType.STANDARD, true, direction, Crash.forbidden, 2);
           MapAlyzor alyzor = new MapAlyzor(karoMap, fakeGame, mapScale);
           alyzor.run();
         }

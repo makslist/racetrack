@@ -13,12 +13,12 @@ public class TeamRule extends GameRule {
 
   @Override
   public boolean isOpponent(Player player) {
-    return !game.getDranPlayer().equals(player) && !player.isBot();
+    return !game.getNext().equals(player) && !player.isBot();
   }
 
   @Override
   public boolean isFriend(Player player) {
-    return !game.getDranPlayer().equals(player) && player.isBot();
+    return !game.getNext().equals(player) && player.isBot();
   }
 
 }

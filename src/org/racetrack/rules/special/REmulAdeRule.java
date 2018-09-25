@@ -35,7 +35,7 @@ public class REmulAdeRule extends GameRule {
     MutableCollection<Move> nextMoves = possibles.getEndMoves();
 
     if (possibles.isInCurrentRound()
-        && game.getPosInRoundOfCurrentPlayer() <= Math.floorDiv(game.getActivePlayersCount(), 7) + 1) {
+        && game.getPosOfNextPlayer() <= Math.floorDiv(game.getActivePlayersCount(), 7) + 1) {
       if (nextMoves.noneSatisfy(isRepeat))
         return Paths.onlyFiltered(possibles, nextMoves.select(isReSafe));
 
@@ -45,8 +45,8 @@ public class REmulAdeRule extends GameRule {
         return filtered;
       }
 
-      MutableList<Player> playerOnField = game.getPlayers()
-          .select(player -> nextMoves.anySatisfy(move -> move.isRepeat() && move.equalsPos(player.getLastmove())));
+      MutableList<Player> playerOnField = game.getActivePlayers()
+          .select(p -> nextMoves.anySatisfy(m -> m.isRepeat() && m.equalsPos(p.getMotion())));
       if (!playerOnField.isEmpty()) {
         Paths filtered = Paths.onlyFiltered(possibles, nextMoves.select(isReSafe));
         filtered.setComment("RE-Schutz: Spieler " + playerOnField.getFirst().getName() + " steht noch auf dem Feld.");

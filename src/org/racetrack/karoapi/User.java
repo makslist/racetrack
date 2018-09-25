@@ -17,10 +17,9 @@ public class User {
   private static final String API_URL_GAMES = "games?user=";
   private static final String API_URL_FINISHED = "&finished=true";
 
-  private static final String API_USER = "user";
   private static final String API_USERS = "users";
   private static final String API_USER_DRAN = "dran";
-  public static final String CHECK = API_USER + "/" + "check";
+  public static final String CHECK = API_USERS + "/" + "check";
 
   private static final String WIKI_IQ_API_PARAM = "action=parse&format=json&page=KaroIQ&prop=links&section=4";
   private static final String WIKI_RE_API_PARAM = "action=parse&format=json&page=Einladeraum&prop=sections";
@@ -72,7 +71,7 @@ public class User {
 
   private static final User readUser(int id) {
     try {
-      User user = User.fromJSONString(KaroClient.callApi(API_USER + "/" + id));
+      User user = User.fromJSONString(KaroClient.callApi(API_USERS + "/" + id));
       users.put(user.login, user);
       return user;
     } catch (JSONException e) {
@@ -350,36 +349,24 @@ public class User {
   }
 
   public List<Game> getGames() {
-    return getGames(getJSONArray(API_URL_GAMES + id));
+    return Game.getGames(getJSONArray(API_URL_GAMES + id));
   }
 
   public List<Game> getFinishedGames() {
-    return getGames(getJSONArray(API_URL_GAMES + id + API_URL_FINISHED));
+    return Game.getGames(getJSONArray(API_URL_GAMES + id + API_URL_FINISHED));
   }
 
-  public List<Game> getDranGames() {
-    String apiResponse = KaroClient.callApi(API_USER + "/" + id + "/" + API_USER_DRAN);
+  public List<Game> getNextGames() {
+    String apiResponse = KaroClient.callApi(API_USERS + "/" + id + "/" + API_USER_DRAN);
     if (!apiResponse.isEmpty()) {
       try {
         JSONArray reponse = new JSONArray(apiResponse);
-        return getGames(reponse);
+        return Game.getGames(reponse);
       } catch (JSONException je) {
         logger.severe("Error while reading gamelist for user " + id + ": " + je.getMessage());
       }
     }
     return new FastList<>(0);
-  }
-
-  private List<Game> getGames(JSONArray array) {
-    if (array == null)
-      return new FastList<>(0);
-
-    List<Game> games = new FastList<>();
-    for (int i = 0; i < array.length(); i++) {
-      JSONObject obj = array.getJSONObject(i);
-      games.add(Game.get(obj.getInt(Game.ID)));
-    }
-    return games;
   }
 
   public boolean isSame(String login) {

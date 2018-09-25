@@ -15,6 +15,13 @@ public class KaroGui extends JFrame {
 
   private static final long serialVersionUID = 1l;
 
+  private static Comparator<Game> gameIdComparator = new Comparator<Game>() {
+    @Override
+    public int compare(Game o1, Game o2) {
+      return o1.getId() - o2.getId();
+    }
+  };
+
   private User user;
   private JPanel mainPanel = new JPanel(new BorderLayout());
   private CommandPanel commandPanel;
@@ -39,8 +46,8 @@ public class KaroGui extends JFrame {
         user = karo.getUser();
         setTitle("Karopapier.de - User: " + user.getLogin());
 
-        games = new Vector<>(user.getDranGames());
-        Collections.sort(games);
+        games = new Vector<>(user.getNextGames());
+        Collections.sort(games, gameIdComparator);
         // for (KaroMap map : KaroMap.getAll()) {
         // games.add(new FakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2));
         // }
@@ -106,8 +113,8 @@ public class KaroGui extends JFrame {
     return new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
-        games = new Vector<>(user.getDranGames());
-        Collections.sort(games);
+        games = new Vector<>(user.getNextGames());
+        Collections.sort(games, gameIdComparator);
 
         mainPanel.remove(commandPanel);
         mainPanel.remove(scrollPane);

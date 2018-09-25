@@ -50,7 +50,7 @@ public class GameRule extends MapRule {
     return true;
   }
 
-  public boolean hasNotXdFinishlineOnF1Circuit(LogMove lastMove) {
+  public boolean hasNotXdFinishlineOnF1Circuit(Move lastMove) {
     return isMapCircuit() && game.isFormula1() && !hasXdFinishline(lastMove);
   }
 
@@ -63,7 +63,7 @@ public class GameRule extends MapRule {
   }
 
   public boolean isOpponent(Player player) {
-    return !game.getDranPlayer().equals(player);
+    return !game.getNext().equals(player);
   }
 
   public boolean isFriend(Player player) {

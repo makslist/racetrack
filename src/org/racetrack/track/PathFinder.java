@@ -13,7 +13,6 @@ import org.racetrack.collections.*;
 import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.rules.*;
-import org.racetrack.worker.*;
 
 public class PathFinder implements Callable<Paths> {
 
@@ -28,8 +27,6 @@ public class PathFinder implements Callable<Paths> {
   protected GameRule rule;
   protected CrashDetector crashDetector;
   protected TSP tsp;
-
-  protected CliProgressBar progress;
 
   protected int minPathLength = MAX_MOVE_LIMIT;
 
@@ -69,7 +66,7 @@ public class PathFinder implements Callable<Paths> {
     this.game = game;
     this.player = player;
     rule = RuleFactory.getInstance(game);
-    tsp = new TSP(game);
+    tsp = new TSP();
   }
 
   public PathFinder(Game game, Player player, GameRule rule, TSP tsp) {
@@ -82,18 +79,18 @@ public class PathFinder implements Callable<Paths> {
 
   @Override
   public Paths call() throws Exception {
-    Paths possiblePaths = player.getPossiblesAsPaths(game);
-    if (possiblePaths.isEmpty())
-      return possiblePaths;
+    MutableCollection<Move> possibles = player.getPossibles();
+    if (possibles.isEmpty())
+      return new Paths();
 
+    Paths possiblePaths = new Paths(possibles);
     crashDetector = new CrashDetector(rule, possiblePaths.getEndMoves());
 
-    if (rule.hasNotXdFinishlineOnF1Circuit(player.getLastmove())) {
+    if (rule.hasNotXdFinishlineOnF1Circuit(player.getMotion())) {
       possiblePaths = findPathToCp(possiblePaths, MapTile.FINISH);
     }
 
-    MutableList<Tour> tours = game.isWithCheckpoints() ? tsp.solve(player.getMissingCps(), edgeRuler, false)
-        : Tour.SINGLE_FINISH_TOUR;
+    MutableList<Tour> tours = game.withCps() ? tsp.solve(player.getMissingCps(), edgeRuler) : Tour.SINGLE_FINISH_TOUR;
     if (game.getMap().getSetting().getMaxTours() > 0) {
       tours = tours.take(game.getMap().getSetting().getMaxTours());
     }
@@ -106,7 +103,7 @@ public class PathFinder implements Callable<Paths> {
   }
 
   protected Paths getMinPathsForTours(Collection<Tour> tours, Paths possibles) {
-    Paths paths = new Paths(game, crashDetector.isCrashAhead());
+    Paths paths = new Paths();
     int maxThreads = Integer.max(Settings.getInstance().getInt(Property.maxParallelTourThreads), 1);
     int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors());
     ExecutorService threadPool = Executors.newWorkStealingPool(minThreads);
@@ -117,10 +114,6 @@ public class PathFinder implements Callable<Paths> {
     for (int i = 1; i <= tours.size(); i++) {
       try {
         Paths travel = service.take().get();
-        if (progress != null) {
-          progress.incProgress();
-        }
-
         int travelLength = travel.getMinTotalLength();
         if (travelLength <= minPathLength) {
           minPathLength = travelLength;
@@ -146,17 +139,14 @@ public class PathFinder implements Callable<Paths> {
    * @return the paths with minimal length, traveling all checkpoint ending with finish
    */
   protected Callable<Paths> travelTour(Tour tour, Paths possibles) {
-    return new Callable<Paths>() {
-      @Override
-      public Paths call() throws Exception {
-        Paths intermedPaths = possibles;
-        for (MapTile cp : tour.getSequence()) {
-          if (!intermedPaths.isEmpty()) {
-            intermedPaths = findPathToCp(intermedPaths, cp);
-          }
+    return () -> {
+      Paths intermedPaths = possibles;
+      for (MapTile cp : tour.getSequence()) {
+        if (!intermedPaths.isEmpty()) {
+          intermedPaths = findPathToCp(intermedPaths, cp);
         }
-        return intermedPaths;
       }
+      return intermedPaths;
     };
   }
 

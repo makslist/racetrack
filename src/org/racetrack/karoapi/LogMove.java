@@ -3,7 +3,6 @@ package org.racetrack.karoapi;
 import java.text.*;
 import java.util.*;
 
-import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.json.*;
@@ -24,13 +23,6 @@ public class LogMove extends Move implements Comparable<LogMove> {
       moves.add(move);
       predecessor = move;
     }
-    return moves;
-  }
-
-  public static MutableCollection<Move> getPossibleMoves(JSONArray json, Move previous) {
-    MutableCollection<Move> moves = new FastList<>();
-    json.forEach(jsonObj -> moves.add(new LogMove((JSONObject) jsonObj, previous)));
-    moves.forEach(move -> move.pathLen = 1);
     return moves;
   }
 

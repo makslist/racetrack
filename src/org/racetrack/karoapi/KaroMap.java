@@ -257,7 +257,7 @@ public class KaroMap {
     return map;
   }
 
-  public boolean isInNight() {
+  public boolean isNight() {
     return 1 == night;
   }
 
