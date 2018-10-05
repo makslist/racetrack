@@ -271,8 +271,12 @@ public class KaroClient {
       return false;
 
     String movePage = sendGetRequest(moveUrl);
-    return !movePage.isEmpty() && !movePage.contains("Du Schummler")
+    boolean postOk = !movePage.isEmpty() && !movePage.contains("Du Schummler")
         && !movePage.contains("Du musst schon angemeldet sein");
+    if (!postOk) {
+      logger.warning("Posting move: " + moveUrl + " not successful.");
+    }
+    return postOk;
   }
 
   public boolean updateChat() {
