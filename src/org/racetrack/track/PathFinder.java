@@ -5,7 +5,6 @@ import java.util.concurrent.*;
 import java.util.logging.*;
 
 import org.eclipse.collections.api.block.function.*;
-import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.map.primitive.*;
 import org.eclipse.collections.impl.map.mutable.primitive.*;
@@ -30,43 +29,11 @@ public class PathFinder implements Callable<Paths> {
 
   protected int minPathLength = MAX_MOVE_LIMIT;
 
-  protected Function<Edge, Short> edgeRuler = edge -> {
-    MutableIntObjectMap<Move> visitedMoves = new IntObjectHashMap<>(2 << 16);
-    MapTile startCp = edge.getStart();
-    MapTile searchCp = edge.getFinish();
-    Collection<Move> startMoves = startCp == MapTile.START ? player.getPossibles()
-        : game.getMap().getTilesAsMoves(startCp);
-    Queue<Move> queue = ShortBucketPriorityQueue.of(startMoves, (Function<Move, Short>) move -> move.getTotalLen());
-
-    while (!queue.isEmpty()) {
-      Move move = queue.poll();
-      if (!visitedMoves.containsKey(move.hashCode())) {
-        visitedMoves.put(move.hashCode(), move);
-
-        if (searchCp == MapTile.FINISH && rule.hasForbidXdFinishline(move)) {
-          continue;
-        } else if (startCp.isCp() && searchCp.isCp() && rule.hasXdFinishlineForDist(move)) {
-          continue;
-        } else if (rule.hasXdCp(move, searchCp))
-          return move.getTotalLen();
-        else {
-          MutableCollection<Move> nextMoves = rule.filterNextMvDist(move);
-          if (!nextMoves.isEmpty()) {
-            queue.addAll(nextMoves);
-          } else if (game.isCrashAllowed() || crashDetector.isCrashAhead(move)) {
-            queue.addAll(move.getMovesAfterCrash(game.getZzz()));
-          }
-        }
-      }
-    }
-    return Short.MAX_VALUE;
-  };
-
   public PathFinder(Game game, Player player) {
     this.game = game;
     this.player = player;
     rule = RuleFactory.getInstance(game);
-    tsp = new TSP();
+    tsp = new TSP(game, rule);
   }
 
   public PathFinder(Game game, Player player, GameRule rule, TSP tsp) {
@@ -79,18 +46,17 @@ public class PathFinder implements Callable<Paths> {
 
   @Override
   public Paths call() throws Exception {
-    MutableCollection<Move> possibles = player.getPossibles();
-    if (possibles.isEmpty())
+    Paths possiblePaths = rule.filterPossibles(new Paths(player.getNextMoves()));
+    if (possiblePaths.isEmpty())
       return new Paths();
-
-    Paths possiblePaths = new Paths(possibles);
     crashDetector = new CrashDetector(rule, possiblePaths.getEndMoves());
 
     if (rule.hasNotXdFinishlineOnF1Circuit(player.getMotion())) {
       possiblePaths = findPathToCp(possiblePaths, MapTile.FINISH);
     }
 
-    MutableList<Tour> tours = game.withCps() ? tsp.solve(player.getMissingCps(), edgeRuler) : Tour.SINGLE_FINISH_TOUR;
+    MutableList<Tour> tours = game.withCps() ? tsp.solve(possiblePaths.getEndMoves(), player.getMissingCps())
+        : Tour.SINGLE_FINISH_TOUR;
     if (game.getMap().getSetting().getMaxTours() > 0) {
       tours = tours.take(game.getMap().getSetting().getMaxTours());
     }

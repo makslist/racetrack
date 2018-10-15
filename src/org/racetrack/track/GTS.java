@@ -2,6 +2,7 @@ package org.racetrack.track;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.logging.*;
 
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.map.*;
@@ -112,10 +113,7 @@ public class GTS implements Callable<GameAction> {
 
   }
 
-  public static void main(String[] args) {
-    GTS max = new GTS(Game.get(108195), null);
-    max.call();
-  }
+  protected static final Logger logger = Logger.getLogger(GTS.class.toString());
 
   private Game game;
   private Player player;
@@ -134,9 +132,9 @@ public class GTS implements Callable<GameAction> {
 
   private int sampleSize;
 
-  public GTS(Game game, Player player) {
+  public GTS(Game game) {
     this.game = game;
-    this.player = player != null ? player : this.game.getNext();
+    player = game.getNext();
   }
 
   @Override
@@ -144,7 +142,7 @@ public class GTS implements Callable<GameAction> {
     if (game.getMap().getSetting().isQuit())
       return GameAction.quitGame(game);
 
-    if (game.getPlayer(player.getId()).getPossibles().isEmpty()) {
+    if (player.getPossibles().isEmpty()) {
       System.out.println(game.getId() + " Crash.");
       return new GameAction(game, null, null);
     }
@@ -152,16 +150,17 @@ public class GTS implements Callable<GameAction> {
     long duration = System.currentTimeMillis();
     int round = game.getCurrentRound();
 
-    MutableList<Player> actualPlayers = game.isStarted() ? game.getNeareastPlayers(player, 5, 3)
+    MutableList<Player> actualPlayers = game.isStarted() ? game.getNearestPlayers(player, 5, 5)
         : (game.getMap().isCpClustered(MapTile.START) && game.getActivePlayersCount() <= 5 ? game.getActivePlayers()
             : Lists.mutable.with(player));
+    System.out.println(game.getId() + " " + game.getName() + " with players: " + actualPlayers);
 
     GameRule rule = new GameRule(game);
 
     MutableMap<Player, Future<Paths>> futurePaths = Maps.mutable.empty();
     ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
     CompletionService<Paths> pathService = new ExecutorCompletionService<>(threadPool);
-    TSP tsp = new TSP();
+    TSP tsp = new TSP(game, rule);
     for (Player pl : actualPlayers) {
       futurePaths.put(pl, pathService.submit(new PathFinder(game, pl, rule, tsp)));
     }
@@ -177,13 +176,13 @@ public class GTS implements Callable<GameAction> {
         }
       }
     } catch (InterruptedException | ExecutionException e) {
+      logger.warning(e.getMessage());
     }
     threadPool.shutdownNow();
 
     // remove reference to rule class to enabled freeing memory
     rule = null;
 
-    System.out.println(game.getId() + " " + game.getName() + " with players: " + actualPlayers);
     Paths playerPaths = paths.get(player);
     MutableList<Move> playerMoves = playerPaths.getMovesOfRound(round);
 
@@ -207,8 +206,7 @@ public class GTS implements Callable<GameAction> {
 
     MutableList<Player> playersAlreadyMoved = actualPlayers.select(p -> p.getMove(round) != null);
     MutableList<Player> playersNotYetMoved = actualPlayers.reject(p -> p.getMove(round) != null);
-    GameState currentState = new GameState(
-        playersAlreadyMoved.collect(p -> new Pair<Player, Move>(p, p.getMotion())));
+    GameState currentState = new GameState(playersAlreadyMoved.collect(p -> new Pair<Player, Move>(p, p.getMotion())));
 
     Move bestMove = play(player, playersNotYetMoved, currentState, round);
     threadPool.shutdownNow();
@@ -279,6 +277,7 @@ public class GTS implements Callable<GameAction> {
               try {
                 return t.get();
               } catch (InterruptedException | ExecutionException e) {
+                logger.warning(e.getMessage());
               }
               return null;
             })));
@@ -320,6 +319,7 @@ public class GTS implements Callable<GameAction> {
         try {
           return t.get();
         } catch (InterruptedException | ExecutionException e) {
+          logger.warning(e.getMessage());
         }
         return null;
       }));

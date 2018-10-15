@@ -31,13 +31,10 @@ public class KaroMap {
 
   private static final Logger logger = Logger.getLogger(KaroMap.class.toString());
 
-  public static Comparator<KaroMap> ratingComparator = (KaroMap m1,
-      KaroMap m2) -> (int) (m2.getRating() * 100 - m1.getRating() * 100);
-
   private static MutableMap<Integer, KaroMap> cachedMaps = Maps.mutable.empty();
 
   public static KaroMap get(int id) {
-    String mapString = KaroClient.callApi(KaroMap.API_MAP + "/" + id + ".json");
+    String mapString = KaroClient.callApi(KaroMap.API_MAP + "/" + id);
     try {
       return KaroMap.fromJSONString(mapString);
     } catch (JSONException jse) {
@@ -101,7 +98,7 @@ public class KaroMap {
 
   public static KaroMap getRandomHighRated() {
     MutableList<KaroMap> higherRatedMaps = getAll()
-        .select(map -> map.rating > 3.3 && map.getPlayers() >= 3 && map.getId() < 1000);
+        .select(map -> map.rating > 3.3 && map.getPlayers() >= 3 && map.isActive() && !map.isNight());
     return higherRatedMaps.get(new Random().nextInt(higherRatedMaps.size()));
   }
 
@@ -141,20 +138,12 @@ public class KaroMap {
     author = json.optString(AUTHOR);
     rating = json.optDouble(RATING);
     players = json.optInt(PLAYERS);
-    mapcode = json.optString(MAPCODE);
-    mapcode = getMapcode();
-    map = readMapFromMapcode();
-    cols = Integer.max(json.optInt(COLS), map[0].length);
-    rows = Integer.max(json.optInt(ROWS), map.length);
+    cols = json.optInt(COLS);
+    rows = json.optInt(ROWS);
     JSONArray cpArray = json.optJSONArray(CPS);
     if (cpArray != null) {
       for (int i = 0; i < cpArray.length(); i++) {
-        MapTile cp = MapTile.valueOf(cpArray.getInt(i));
-        if (getTilesAsMoves(cp).isEmpty()) {
-          System.out.println("Checkpoint " + cp + " does not exist on map " + id + ".");
-        } else {
-          cps.add(cp);
-        }
+        cps.add(MapTile.valueOf(cpArray.getInt(i)));
       }
     }
     active = json.optBoolean(ACTIVE);
@@ -189,7 +178,7 @@ public class KaroMap {
     return players;
   }
 
-  public String getMapcode() {
+  private String getMapcode() {
     if (mapcode == null || mapcode.isEmpty()) {
       mapcode = KaroClient.callApi(KaroMap.API_MAPCODE + "/" + id).replace("\"", "");
     }
@@ -330,6 +319,9 @@ public class KaroMap {
   }
 
   public MapTile getTileOf(int x, int y) {
+    if (map == null) {
+      map = readMapFromMapcode();
+    }
     return MapTile.valueOf(map[y][x]);
   }
 

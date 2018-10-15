@@ -1,6 +1,7 @@
 package org.racetrack.karoapi;
 
 import java.util.*;
+import java.util.logging.*;
 
 import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.list.*;
@@ -18,6 +19,8 @@ public class Player {
     OK, LEFT, KICKED
   }
 
+  protected static final Logger logger = Logger.getLogger(Player.class.toString());
+
   public static Map<Integer, Player> getPlayers(Game game, JSONArray array) {
     Map<Integer, Player> players = Maps.mutable.empty();
     for (int i = 0; i < array.length(); i++) {
@@ -27,9 +30,10 @@ public class Player {
     return players;
   }
 
-  public static Player getNew(int userId) {
+  public static Player getNew(int userId, String name) {
     Player player = new Player();
     player.id = userId;
+    player.name = name;
     return player;
   }
 
@@ -76,10 +80,10 @@ public class Player {
     moved = json.getBoolean(Field.moved.toString());
     rank = json.getInt(Field.rank.toString());
     status = Status.valueOf(json.getString(Field.status.toString()).toUpperCase());
-    moveCount = json.getInt(Field.moveCount.toString());
     crashCount = json.getInt(Field.crashCount.toString());
     checkedCps = getCps(json.optJSONArray(Field.checkedCps.toString()));
     missingCps = getCps(json.optJSONArray(Field.missingCps.toString()));
+
     if (json.has(Field.moves.toString())) {
       moves = LogMove.getPreviousMoves(json.getJSONArray(Field.moves.toString()));
       if (json.has(Field.motion.toString())) {
@@ -90,6 +94,7 @@ public class Player {
         }
       }
     }
+    moveCount = motion == null ? 0 : motion.getTotalLen() + 1;
 
     if (json.has(Field.possibles.toString())) {
       possibles = Move.getPossibleMoves(json.getJSONArray(Field.possibles.toString()), motion);// lastmove);
@@ -136,13 +141,18 @@ public class Player {
   }
 
   public MutableCollection<Move> getPossibles() {
-    if (motion == null && possibles.isEmpty()) {
-      System.out.println("Bug still exists!");
-      MutableList<Move> startMoves = game.getMap().getTilesAsMoves(MapTile.START);
-      MutableList<Move> motions = game.getActivePlayers().select(p -> p.moveCount > 0).collect(p -> p.getMotion());
-      return startMoves.reject(m -> m.equalsPos(motions));
-    }
     return possibles;
+  }
+
+  public MutableCollection<Move> getNextMoves() {
+    MutableCollection<Move> moves = motion != null ? motion.getNext() : game.getMap().getTilesAsMoves(MapTile.START);
+    MutableList<Move> blocked = game.getActivePlayers().select(p -> p.moveCount == moveCount + 1)
+        .collect(p -> p.getMotion());
+    MutableCollection<Move> possibleMoves = moves.reject(m -> m.equalsPos(blocked));
+    if (possibles.size() > possibleMoves.size()) {
+      logger.severe("Possibles when calculating possibles: " + possibles + " / " + possibleMoves);
+    }
+    return possibleMoves;
   }
 
   public MutableList<LogMove> getMoves() {
@@ -150,13 +160,7 @@ public class Player {
   }
 
   public LogMove getMove(int round) {
-    if (round >= 0) {
-      for (LogMove move : moves) {
-        if (move.totalLen == round && !move.isCrash())
-          return move;
-      }
-    }
-    return null;
+    return moves.detect(m -> m.totalLen == round - 1 && !m.isCrash());
   }
 
   private User getUser() {
@@ -172,7 +176,8 @@ public class Player {
 
   public int getDist(Player player, int round) {
     Move nearMove = player.getMove(round);
-    return getMove(round) != null && nearMove != null ? getMove(round).getDist(nearMove) : Integer.MAX_VALUE;
+    LogMove move = getMove(round);
+    return move != null && nearMove != null ? move.getDist(nearMove) : Integer.MAX_VALUE;
   }
 
   public int getDist(MutableCollection<Move> possibles, int round) {

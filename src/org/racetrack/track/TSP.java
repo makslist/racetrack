@@ -1,100 +1,118 @@
 package org.racetrack.track;
 
+import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.*;
+import java.util.logging.*;
 
-import org.eclipse.collections.api.block.function.*;
+import org.eclipse.collections.api.*;
 import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.list.*;
-import org.eclipse.collections.api.map.primitive.*;
+import org.eclipse.collections.api.set.primitive.*;
+import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
-import org.eclipse.collections.impl.map.mutable.*;
-import org.eclipse.collections.impl.map.mutable.primitive.*;
+import org.eclipse.collections.impl.multimap.set.*;
+import org.eclipse.collections.impl.set.mutable.primitive.*;
 import org.racetrack.karoapi.*;
+import org.racetrack.rules.*;
 
-public class TSP {
+public final class TSP {
 
   private static final int DIFF_DISTANCE = 7;
   private static final int MAX_MOVE = 7000;
   private static final int MAX_TOURS = 200;
 
-  private Function<Edge, Short> edgeRuler;
+  private static final Logger logger = Logger.getLogger(PathFinder.class.toString());
 
-  private SynchronizedMutableMap<Edge, ReadWriteLock> edgeLocks = new SynchronizedMutableMap<>(
-      new UnifiedMap<Edge, ReadWriteLock>());
-  private MutableObjectShortMap<Edge> distances = new ObjectShortHashMap<Edge>();
+  private Game game;
+  private GameRule rule;
+  private SynchronizedPutUnifiedSetMultimap<MapTile, Edge> edges = new SynchronizedPutUnifiedSetMultimap<>();
 
-  private ExecutorService executor = Executors.newWorkStealingPool();
-
-  private Function<Edge, Short> distanceRuler = edge -> {
-    ReadWriteLock rwLock = edgeLocks.getIfAbsentPut(edge, new SeqLock(false));
-    SeqLock.SeqReadLock lock = (SeqLock.SeqReadLock) rwLock.readLock();
-    try {
-      while (true) {
-        long lockCounter = lock.tryReadLock();
-        short dist = distances.getOrThrow(edge);
-        if (lock.retryReadLock(lockCounter))
-          return dist;
-      }
-    } catch (IllegalStateException ise) {
-      rwLock.writeLock().lock();
-      short dist = edgeRuler.apply(edge);
-      distances.put(edge, dist);
-      rwLock.writeLock().unlock();
-      return dist;
-    }
-  };
-
-  public TSP() {
+  public TSP(Game game, GameRule rule) {
+    this.game = game;
+    this.rule = rule;
   }
 
-  public MutableList<Tour> solve(MutableCollection<MapTile> missingCps, Function<Edge, Short> edgeRuler) {
-    this.edgeRuler = edgeRuler;
+  public MutableList<Tour> solve(MutableCollection<Move> possibles, MutableCollection<MapTile> missingCps) {
     if (missingCps.isEmpty())
       return Tour.SINGLE_FINISH_TOUR;
 
-    for (MapTile cp : missingCps) {
-      for (MapTile other : missingCps) {
-        if (cp != other) {
-          executor.submit(() -> distanceRuler.apply(new Edge(cp, other)));
-        }
+    ExecutorService executor = Executors.newCachedThreadPool();
+
+    MutableList<MapTile> fromCps = new FastList<>(missingCps).with(MapTile.FINISH);
+    MutableList<MapTile> toCps = new FastList<>(fromCps);
+    for (MapTile fromCp : fromCps) {
+      for (MapTile toCp : toCps.without(fromCp)) {
+        executor.submit(() -> edgeRange(fromCp, toCp));
       }
-      executor.submit(() -> distanceRuler.apply(new Edge(cp, MapTile.FINISH)));
     }
 
-    MutableObjectShortMap<Edge> startDistances = new ObjectShortHashMap<Edge>();
-    for (MapTile cp : missingCps) {
-      Edge start = new Edge(MapTile.START, cp);
-      try {
-        startDistances.put(start, executor.submit(() -> edgeRuler.apply(start)).get());
-      } catch (InterruptedException | ExecutionException e) {
-      }
+    executor.shutdown();
+    try {
+      executor.awaitTermination(20, TimeUnit.MINUTES);
+    } catch (InterruptedException e) {
+      logger.warning(e.getMessage());
     }
 
     MutableList<Tour> tours = new FastList<>();
-    buildTours(new Tour(edge -> startDistances.get(edge), distanceRuler), missingCps, tours);
-
-    try {
-      executor.shutdown();
-      executor.awaitTermination(5, TimeUnit.MINUTES);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+    MutableCollection<Move> startMoves = possibles.select(rule.filterPossibles());
+    for (MapTile toCp : missingCps) {
+      short dist = findRange(false, startMoves, toCp);
+      tours.addAll(buildTours(new Tour(MapTile.START, toCp, dist), new FastList<>(missingCps).without(toCp)));
     }
-    int minimum = tours.min((t1, t2) -> t1.getDistance() - t2.getDistance()).getDistance();
-    return tours.select(tour -> tour.getDistance() <= minimum + DIFF_DISTANCE).sortThis().take(MAX_MOVE / minimum)
+
+    int minimum = tours.min().getDistance();
+    return tours.select(t -> t.getDistance() <= minimum + DIFF_DISTANCE).sortThis().take(MAX_MOVE / minimum)
         .take(MAX_TOURS);
   }
 
-  private void buildTours(Tour tour, MutableCollection<MapTile> missingCps, MutableList<Tour> tours) {
-    for (MapTile cp : missingCps) {
-      Tour tourSection = new Tour(tour, cp);
-      MutableList<MapTile> restCps = new FastList<>(missingCps).without(cp);
-      if (restCps.isEmpty()) {
-        tours.add(tourSection);
-        executor.submit(tourSection.evaluate());
-      } else {
-        buildTours(tourSection, restCps, tours);
+  private void edgeRange(MapTile fromCp, MapTile toCp) {
+    RichIterable<Edge> edgeList = edges.get(fromCp);
+    Edge detect = edgeList.detect(edge -> edge.connects(toCp));
+    if (detect == null) {
+      short dist = findRange(true, game.getMap().getTilesAsMoves(fromCp), toCp);
+      detect = new Edge(fromCp, toCp, dist);
+      edges.put(fromCp, detect);
+      edges.put(toCp, detect);
+    }
+  }
+
+  private short findRange(boolean isFromCp, Collection<Move> startMoves, MapTile toCp) {
+    MutableIntSet visitedMoves = new IntHashSet();
+    Queue<Move> queue = new LinkedList<>(startMoves);
+    while (!queue.isEmpty()) {
+      Move move = queue.poll();
+      if (visitedMoves.add(move.hashCode())) {
+        if (toCp.isFinish() && rule.hasForbidXdFinishline(move)) {
+          continue;
+        } else if (isFromCp && toCp.isCp() && rule.hasXdFinishlineForDist(move)) {
+          continue;
+        } else if (rule.hasXdCp(move, toCp))
+          return move.getTotalLen();
+        else {
+          queue.addAll(rule.filterNextMvDist(move));
+        }
       }
+    }
+    logger.warning("No valid path found from " + startMoves + " to " + toCp);
+    return Short.MAX_VALUE;
+  };
+
+  private MutableList<Tour> buildTours(Tour partialTour, MutableCollection<MapTile> missingCps) {
+    if (missingCps.isEmpty()) {
+      Tour tour = partialTour.copy();
+      Edge edge = edges.get(tour.getEnd()).detect(e -> e.connects(MapTile.FINISH));
+      tour.addEdge(edge);
+      return Lists.mutable.with(tour);
+    } else {
+      MutableList<Tour> tours = new FastList<>();
+      for (MapTile cp : missingCps) {
+        Tour tour = partialTour.copy();
+        Edge edge = edges.get(tour.getEnd()).detect(e -> e.connects(cp));
+        tour.addEdge(edge);
+        MutableList<MapTile> restCps = new FastList<>(missingCps).without(cp);
+        tours.addAll(buildTours(tour, restCps));
+      }
+      return tours;
     }
   }
 

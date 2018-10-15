@@ -175,7 +175,7 @@ public class KaroClient {
         }
       } catch (JSONException je) {
         user = null;
-        logger.severe("Login user: " + login + " with password: " + password + " failed. Reason: " + je.getMessage());
+        logger.severe("Login user: " + login + " failed.");
       }
       try {
         Thread.sleep(KaroClient.API_LOGIN_REATEMPT_TIME);
@@ -227,8 +227,7 @@ public class KaroClient {
     String response = sendPostRequest(getApiURL(Game.API_ADD), params, CONTENT_TYPE_FORM);
     try {
       JSONObject jsonObj = new JSONObject(response).getJSONObject("game");
-      Game createdGame = Game.fromJSON(jsonObj);
-      return createdGame.getId() > 0;
+      return jsonObj != null;
     } catch (JSONException je) {
       logger.severe(je.getMessage());
       return false;

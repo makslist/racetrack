@@ -198,19 +198,19 @@ public class Paths {
     return crashPreds;
   }
 
-  public MutableList<Move> getMovesOfRound(int level) {
-    if (roundMoves.containsKey(level))
-      return roundMoves.get(level);
+  public MutableList<Move> getMovesOfRound(int round) {
+    if (roundMoves.containsKey(round))
+      return roundMoves.get(round);
 
     MutableCollection<Move> beginingMoves = Sets.mutable.empty();
     MutableCollection<Move> curLevel = moves;
     while (!curLevel.isEmpty()) {
-      beginingMoves.addAll(curLevel.select(move -> move.getTotalLen() == level));
+      beginingMoves.addAll(curLevel.select(move -> move.getTotalLen() == round - 1));
       MutableCollection<Move> previousLevel = curLevel.flatCollect(move -> move.getNonCrashPredecessors()).toSet();
       curLevel = previousLevel;
     }
     MutableList<Move> moveList = beginingMoves.toList();
-    roundMoves.put(level, moveList);
+    roundMoves.put(round, moveList);
     return moveList;
   }
 

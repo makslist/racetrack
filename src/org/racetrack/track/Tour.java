@@ -1,9 +1,8 @@
 package org.racetrack.track;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.logging.*;
 
-import org.eclipse.collections.api.block.function.*;
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
@@ -11,76 +10,79 @@ import org.racetrack.karoapi.*;
 
 public class Tour implements Comparable<Tour> {
 
-  public static final MutableList<Tour> SINGLE_FINISH_TOUR = Lists.fixedSize.with(new Tour(MapTile.FINISH));
+  private static final Logger logger = Logger.getLogger(Tour.class.getName());
 
-  private MutableList<MapTile> cps = null;
-  private Function<Edge, Short> startRuler = null;
-  private Function<Edge, Short> edgeRuler = null;
-  private short distance = -1;
+  public static final MutableList<Tour> SINGLE_FINISH_TOUR = Lists.fixedSize
+      .with(new Tour(MapTile.START, MapTile.FINISH));
 
-  public Tour(Function<Edge, Short> startRuler, Function<Edge, Short> edgeRuler) {
-    cps = Lists.mutable.empty();
-    this.startRuler = startRuler;
-    this.edgeRuler = edgeRuler;
+  private MapTile end;
+  private MutableList<Edge> edges = new FastList<>(0);
+
+  private Tour() {
   }
 
-  public Tour(Tour tour, MapTile cp) {
-    cps = new FastList<>(tour.cps).with(cp);
-    startRuler = tour.startRuler;
-    edgeRuler = tour.edgeRuler;
+  public Tour(MapTile start, MapTile end) {
+    this.end = end;
+    edges.add(new Edge(start, end));
   }
 
-  private Tour(MapTile cp) {
-    cps = Lists.mutable.with(cp);
+  public Tour(MapTile start, MapTile end, int dist) {
+    this.end = end;
+    edges.add(new Edge(start, end, dist));
   }
 
-  public MapTile getLast() {
-    return cps.getLast();
+  public Tour(Edge edge) {
+    end = edge.getCP1() != MapTile.START ? edge.getCP1() : edge.getCP2();
+    edges.add(edge);
+  }
+
+  public Tour copy() {
+    Tour tour2 = new Tour();
+    tour2.end = end;
+    tour2.edges = new FastList<>(edges);
+    return tour2;
+  }
+
+  public void addEdge(Edge edge) {
+    if (end == null) {
+      edges.add(edge);
+    } else if (end.equals(edge.getCP1())) {
+      end = edge.getCP2();
+      edges.add(edge);
+    } else if (end.equals(edge.getCP2())) {
+      end = edge.getCP1();
+      edges.add(edge);
+    } else {
+      logger.severe("Error in tour " + edges + ": " + edge + " doesn't connect to tour end " + end);
+    }
   }
 
   public Collection<MapTile> getSequence() {
-    return new FastList<>(cps).with(MapTile.FINISH);
+    MapTile last = MapTile.START;
+    Collection<MapTile> sequence = new FastList<>();
+    for (Edge edge : edges) {
+      last = edge.getCP1() != last ? edge.getCP1() : edge.getCP2();
+      sequence.add(last);
+    }
+    return sequence;
   }
 
-  public Callable<Short> evaluate() {
-    return () -> {
-      if (distance >= 0)
-        return distance;
-
-      distance = 0;
-      MapTile prev = MapTile.START;
-      for (MapTile cp : cps) {
-        Edge edge = new Edge(prev, cp);
-        if (prev == MapTile.START) {
-          distance += startRuler.apply(edge);
-        } else {
-          distance += edgeRuler.apply(edge);
-        }
-        prev = cp;
-      }
-      distance += edgeRuler.apply(new Edge(prev, MapTile.FINISH));
-      return distance;
-    };
+  public MapTile getEnd() {
+    return end;
   }
 
   public int getDistance() {
-    if (distance < 0) {
-      try {
-        evaluate().call();
-      } catch (Exception e) {
-      }
-    }
-    return distance;
+    return (int) edges.sumOfInt(each -> each.getDist());
   }
 
   @Override
   public int compareTo(Tour tour) {
-    return distance - tour.distance;
+    return getDistance() - tour.getDistance();
   }
 
   @Override
   public String toString() {
-    return cps.toString() + " with distance " + distance;
+    return getSequence() + ": " + getDistance();
   }
 
 }

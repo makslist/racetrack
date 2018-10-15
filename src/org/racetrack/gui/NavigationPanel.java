@@ -44,7 +44,7 @@ public class NavigationPanel extends JPanel {
     if (paths != null) {
       int endLevel = paths.getMinTotalLength();
       int startLevel = endLevel - paths.getMinLength();
-      for (int i = endLevel; i >= startLevel; i--) {
+      for (int i = endLevel + 1; i > startLevel; i--) {
         MutableList<Move> levelMoves = paths.getMovesOfRound(i);
 
         for (Move move : levelMoves) {

@@ -47,6 +47,7 @@ public class User {
   private static final Logger logger = Logger.getLogger(User.class.toString());
 
   private static MutableMap<String, User> users = Maps.mutable.empty();
+  private static long usersLoadedAt = 0;
   private static MutableSet<String> iqUsers = Sets.mutable.empty();
   private static MutableSet<String> reUsers = Sets.mutable.empty();
 
@@ -54,33 +55,16 @@ public class User {
   public static final Predicate<User> humans = user -> !user.isBot();
 
   public static final User get(int id) {
-    if (users.isEmpty()) {
-      readUsers();
-    } else if (users.toSet().noneSatisfy(user -> user.id == id)) {
-      readUser(id);
-    }
-    return users.toSet().detect(user -> user.id == id);
+    return getAll().detect(user -> user.id == id);
   }
 
   public static final User get(String login) {
-    if (users.isEmpty() || !users.containsKey(login.toLowerCase())) {
-      readUsers();
-    }
-    return users.getOrDefault(login.toLowerCase(), null);
+    return getUsers().getOrDefault(login.toLowerCase(), null);
   }
 
-  private static final User readUser(int id) {
-    try {
-      User user = User.fromJSONString(KaroClient.callApi(API_USERS + "/" + id));
-      users.put(user.login, user);
-      return user;
-    } catch (JSONException e) {
-      logger.severe("JSONException while parsing: " + e.getMessage());
-    }
-    return null;
-  }
-
-  private static final void readUsers() {
+  private static final MutableMap<String, User> getUsers() {
+    if (!users.isEmpty() && (System.currentTimeMillis() - usersLoadedAt < 60 * 60 * 1000))
+      return users;
     try {
       users.clear();
       String json = KaroClient.callApi(API_USERS);
@@ -91,9 +75,12 @@ public class User {
           users.put(user.login.toLowerCase(), user);
         }
       }
+      usersLoadedAt = System.currentTimeMillis();
+      return users;
     } catch (JSONException e) {
       logger.severe("JSONException while parsing: " + e.getMessage());
     }
+    return Maps.mutable.empty();
   }
 
   private static final void readIqUsers() {
@@ -154,44 +141,24 @@ public class User {
     return getAll().select(user -> user.isActive() && user.isInvitable());
   }
 
-  public static final List<User> getNonBlocking() {
-    return getAll().select(user -> user.isActive() && user.isInvitable() && !user.isBlocking());
+  public static final MutableList<User> getNonBlocking() {
+    return getActive().select(user -> !user.isBlocking());
   }
 
-  public static final List<User> getDesperates() {
-    return getActive()
-        .select(user -> user.isDesperate() && user.isActive() && user.isInvitable() && !user.isBlocking());
+  public static final MutableList<User> getDesperates() {
+    return getNonBlocking().select(user -> user.isDesperate());
   }
 
   public static final MutableList<User> getBirthdayKids() {
-    readUsers();
     return getAll().select(user -> user.isActive() && user.hasBirthday());
   }
 
   public static final MutableList<User> getKaroKids() {
-    readUsers();
     return getAll().select(user -> user.isActive() && user.hasKaroday());
   }
 
-  public static final MutableList<User> getIqs() {
-    if (iqUsers.isEmpty()) {
-      readIqUsers();
-    }
-    return getAll().select(user -> user.isWithIq());
-  }
-
-  public static final MutableList<User> getRes() {
-    if (reUsers.isEmpty()) {
-      readReUsers();
-    }
-    return getAll().select(user -> user.isWithRe());
-  }
-
   public static final MutableList<User> getAll() {
-    if (users.isEmpty()) {
-      readUsers();
-    }
-    return users.toList();
+    return getUsers().toList();
   }
 
   private static JSONArray getJSONArray(String apiUrl) {
@@ -374,11 +341,11 @@ public class User {
   }
 
   public boolean isInvitable() {
-    return getMaxGames() == 0 || getMaxGames() > getActiveGames();
+    return getMaxGames() == 0 || getActiveGames() < getMaxGames();
   }
 
   public boolean isActive() {
-    return getLastVisit() < 3 && getSignup() > 30 && getActiveGames() > 5;
+    return getLastVisit() <= 1 && getSignup() > 30 && getActiveGames() > 5;
   }
 
   public boolean isBlocking() {
@@ -386,7 +353,7 @@ public class User {
   }
 
   public Player asPlayer() {
-    return Player.getNew(getId());
+    return Player.getNew(getId(), getLogin());
   }
 
   @Override

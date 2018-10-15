@@ -76,6 +76,12 @@ public class LogMove extends Move implements Comparable<LogMove> {
   }
 
   @Override
+  public boolean equals(Object obj) {
+    LogMove move = (LogMove) obj;
+    return x == move.x && y == move.y && xv == move.xv && yv == move.yv && (time != null && time.equals(move.time));
+  }
+
+  @Override
   public int compareTo(LogMove move) {
     return isBefore(move) ? -1 : 1;
   }

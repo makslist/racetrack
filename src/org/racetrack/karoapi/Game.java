@@ -43,29 +43,28 @@ public class Game {
     return game;
   }
 
-  public static Game newRandom(String title, String creator, String challenger) {
+  public static Game newRandom(String title, String creator, boolean withIq) {
     KaroMap map = KaroMap.getRandomHighRated();
 
     Dir dir = Dir.classic;
-    Game game = new Game(title != null ? title : map.getName(), map.getId(), dir);
+    String gameTitle = title != null ? title : map.getName();
+    if (withIq) {
+      gameTitle = gameTitle + " !KaroIQ!";
+    }
+    Game game = new Game(gameTitle, map.getId(), dir);
     User bot = User.get(creator);
 
     game.addPlayer(bot);
     int restPlayerCount = Math.max(Math.round(map.getPlayers() * 0.75f), map.getPlayers() - 2) - 1;
-    if (challenger != null) {
-      User chall = User.get(challenger);
-      game.addPlayer(chall);
-      restPlayerCount--;
-    }
 
-    List<User> desperates = User.getNonBlocking();
+    MutableList<User> nonBlocking = User.getNonBlocking();
+    if (withIq) {
+      nonBlocking = nonBlocking.select(u -> u.isWithIq());
+    }
     Random random = new Random();
     while (restPlayerCount > 0) {
-      User player = desperates.get(random.nextInt(desperates.size()));
-      if (!game.isPlayer(player) && !player.isBot()) {
-        if (game.addPlayer(player)) {
-          restPlayerCount--;
-        }
+      if (game.addPlayer(nonBlocking.get(random.nextInt(nonBlocking.size())))) {
+        restPlayerCount--;
       }
     }
     return game;
@@ -264,10 +263,11 @@ public class Game {
     return getActivePlayers().select(p -> p.getMove(getCurrentRound()) == null);
   }
 
-  public MutableList<Player> getNeareastPlayers(Player player, int count, int dist) {
+  public MutableList<Player> getNearestPlayers(Player player, int count, int maxDist) {
     MutableCollection<Move> possibles = player.getPossibles();
-    MutableList<Player> nearest = getActivePlayers().select(
-        p -> Math.min(player.getDist(p, getCurrentRound() - 1), p.getDist(possibles, getCurrentRound())) <= dist);
+    int currentRound = getCurrentRound();
+    MutableList<Player> nearest = getActivePlayers().select(p -> p.equals(player)
+        || Math.min(player.getDist(p, currentRound - 1), p.getDist(possibles, currentRound)) <= maxDist);
     nearest.sortThis(
         (o1, o2) -> Math.min(player.getDist(o1, getCurrentRound() - 1), o1.getDist(possibles, getCurrentRound()))
             - Math.min(player.getDist(o2, getCurrentRound() - 1), o2.getDist(possibles, getCurrentRound())));
@@ -308,14 +308,12 @@ public class Game {
     MutableCollection<Player> activePlayers = getActivePlayers();
     if (activePlayers.isEmpty())
       return -1;
-    int maxMoveCount = activePlayers.maxBy(p -> p.getMoveCount()).getMoveCount();
-    if (activePlayers.anySatisfy(p -> p.getMoveCount() != maxMoveCount))
-      return maxMoveCount - 1;
-    return maxMoveCount;
+    MutableCollection<Integer> moveCounts = activePlayers.collect(each -> each.getMoveCount());
+    return moveCounts.min() + 1;
   }
 
   public boolean isStarted() {
-    return getCurrentRound() > 0;
+    return getCurrentRound() > 1;
   }
 
   public boolean isWithIq() {
@@ -342,8 +340,8 @@ public class Game {
     return (cps && getMap().hasCps()) ? Dir.valueOf(startdirection) : Dir.classic;
   }
 
-  private boolean addPlayer(User player) {
-    return players.put(player.getId(), player.asPlayer()) == null;
+  private boolean addPlayer(User user) {
+    return players.put(user.getId(), user.asPlayer()) == null;
   }
 
   public KaroMapSetting getSetting() {
@@ -361,7 +359,7 @@ public class Game {
     game.put(Field.map.toString(), String.valueOf(map.getId()));
     JSONObject options = new JSONObject();
     options.put(Field.startdirection.toString(), startdirection);
-    options.put(Field.cps.toString(), cps);
+    options.put("withCheckpoints", cps); // workaround for old API
     options.put(Field.zzz.toString(), zzz);
     options.put(Field.crashallowed.toString(), crashallowed);
     game.put(Field.options.toString(), options);
@@ -374,6 +372,7 @@ public class Game {
     StringBuilder sb = new StringBuilder();
     sb.append(Field.id.toString()).append(":").append(id);
     sb.append(" ").append(name);
+    sb.append(" ").append(players);
     return sb.toString();
   }
 

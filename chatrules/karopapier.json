@@ -2,18 +2,6 @@
   "keys": [
     {
       "rank": 0,
-      "key": "analyse",
-      "decomb": [
-        {
-          "pattern": "*",
-          "reasemb": [
-            "#analyze"
-          ]
-        }
-      ]
-    },
-    {
-      "rank": 0,
       "key": "cheerleading",
       "decomb": [
         {

@@ -6,10 +6,17 @@ public class Edge {
 
   private MapTile cp1;
   private MapTile cp2;
+  private int dist;
 
   public Edge(MapTile cp1, MapTile cp2) {
     this.cp1 = cp1;
     this.cp2 = cp2;
+  }
+
+  public Edge(MapTile cp1, MapTile cp2, int dist) {
+    this.cp1 = cp1;
+    this.cp2 = cp2;
+    this.dist = dist;
   }
 
   public MapTile getCP1() {
@@ -18,6 +25,14 @@ public class Edge {
 
   public MapTile getCP2() {
     return cp2;
+  }
+
+  public int getDist() {
+    return dist;
+  }
+
+  public boolean connects(MapTile cp) {
+    return cp1.equals(cp) || cp2.equals(cp);
   }
 
   public MapTile getStart() {

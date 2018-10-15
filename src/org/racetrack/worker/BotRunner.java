@@ -29,7 +29,7 @@ public class BotRunner implements Runnable {
   private boolean withChat;
   private ChatModule chatbot;
 
-  private BlockingQueue<Game> games = new PriorityBlockingQueue<>();
+  private BlockingQueue<Game> games = new LinkedBlockingQueue<>();
   private BlockingQueue<Chat> chatMsg = new LinkedBlockingQueue<>();
   private Set<Object> gamesInProcess = Collections.synchronizedSet(new ConcurrentSkipListSet<>());
 
@@ -68,7 +68,7 @@ public class BotRunner implements Runnable {
       return;
     }
 
-    // backup thread in case webclient crashed
+    // backup thread for loading active games in case webclient crashed
     scheduler.scheduleWithFixedDelay(() -> {
       games.addAll(user.getNextGames());
     }, 0, 8, TimeUnit.MINUTES);
@@ -90,7 +90,13 @@ public class BotRunner implements Runnable {
           }
         }
       }
-    }, computeDelaySeconds(6, 30, 0), 24 * 60 * 60, TimeUnit.SECONDS);
+    }, computeDelayMinutes(6, 30, 0), 24 * 60, TimeUnit.MINUTES);
+
+    // creates one game every day
+    scheduler.scheduleAtFixedRate(() -> {
+      Game game = Game.newRandom(null, userLogin, new Random().nextBoolean());
+      karo.addGame(game);
+    }, computeDelayMinutes(9, 0, 0), 24 * 60, TimeUnit.MINUTES);
 
     new Thread(websocketClient()).start();
     new Thread(chat()).start();
@@ -158,7 +164,7 @@ public class BotRunner implements Runnable {
             Player player = game.getPlayer(user);
             if (game.isNextPlayer(player)) {
               if (gamesInProcess.add(game.getId())) {
-                gameTreeSearch.submit(new GTS(game, player));
+                gameTreeSearch.submit(new GTS(game));
               }
             }
           } catch (NullPointerException | OutOfMemoryError npe) {
@@ -207,7 +213,7 @@ public class BotRunner implements Runnable {
 
   }
 
-  protected long computeDelaySeconds(int targetHour, int targetMin, int targetSec) {
+  protected long computeDelayMinutes(int targetHour, int targetMin, int targetSec) {
     LocalDateTime localNow = LocalDateTime.now(ZoneId.of("CET"));
     ZonedDateTime zonedNow = ZonedDateTime.of(localNow, ZoneId.of("CET"));
     ZonedDateTime zonedNextTarget = zonedNow.withHour(targetHour).withMinute(targetMin).withSecond(targetSec);
@@ -216,7 +222,7 @@ public class BotRunner implements Runnable {
     }
 
     Duration duration = Duration.between(zonedNow, zonedNextTarget);
-    return duration.getSeconds();
+    return duration.getSeconds() / 60;
   }
 
 }
