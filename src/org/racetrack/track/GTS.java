@@ -155,7 +155,7 @@ public class GTS implements Callable<GameAction> {
             : Lists.mutable.with(player));
     System.out.println(game.getId() + " " + game.getName() + " with players: " + actualPlayers);
 
-    GameRule rule = new GameRule(game);
+    GameRule rule = RuleFactory.getInstance(game);
 
     MutableMap<Player, Future<Paths>> futurePaths = Maps.mutable.empty();
     ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);

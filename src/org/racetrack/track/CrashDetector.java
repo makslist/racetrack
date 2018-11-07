@@ -25,19 +25,12 @@ public class CrashDetector {
   }
 
   private MapRule rule;
-  private int depth;
+  private int depth = CRASH_DETECTOR_DEPTH;
   private Collection<Move> moves;
   private Boolean crashAhead;
 
   public CrashDetector(MapRule rule, Collection<Move> moves) {
     this.rule = rule;
-    depth = CRASH_DETECTOR_DEPTH;
-    this.moves = moves;
-  }
-
-  public CrashDetector(MapRule rule, int depth, Collection<Move> moves) {
-    this.rule = rule;
-    this.depth = depth;
     this.moves = moves;
   }
 
@@ -47,12 +40,13 @@ public class CrashDetector {
 
   public boolean isCrashAhead() {
     if (crashAhead == null) {
-      crashAhead = true;
       for (Move move : moves) {
         if (isPathSave(move, depth)) {
           crashAhead = false;
+          return false;
         }
       }
+      crashAhead = true;
     }
     return crashAhead;
   }

@@ -55,8 +55,9 @@ public final class TSP {
 
     MutableList<Tour> tours = new FastList<>();
     MutableCollection<Move> startMoves = possibles.select(rule.filterPossibles());
+    CrashDetector crashDetector = new CrashDetector(rule, startMoves);
     for (MapTile toCp : missingCps) {
-      short dist = findRange(false, startMoves, toCp);
+      short dist = findRange(false, startMoves, toCp, crashDetector);
       tours.addAll(buildTours(new Tour(MapTile.START, toCp, dist), new FastList<>(missingCps).without(toCp)));
     }
 
@@ -69,14 +70,14 @@ public final class TSP {
     RichIterable<Edge> edgeList = edges.get(fromCp);
     Edge detect = edgeList.detect(edge -> edge.connects(toCp));
     if (detect == null) {
-      short dist = findRange(true, game.getMap().getTilesAsMoves(fromCp), toCp);
+      short dist = findRange(true, game.getMap().getTilesAsMoves(fromCp), toCp, null);
       detect = new Edge(fromCp, toCp, dist);
       edges.put(fromCp, detect);
       edges.put(toCp, detect);
     }
   }
 
-  private short findRange(boolean isFromCp, Collection<Move> startMoves, MapTile toCp) {
+  private short findRange(boolean isFromCp, Collection<Move> startMoves, MapTile toCp, CrashDetector cD) {
     MutableIntSet visitedMoves = new IntHashSet();
     Queue<Move> queue = new LinkedList<>(startMoves);
     while (!queue.isEmpty()) {
@@ -89,7 +90,12 @@ public final class TSP {
         } else if (rule.hasXdCp(move, toCp))
           return move.getTotalLen();
         else {
-          queue.addAll(rule.filterNextMvDist(move));
+          MutableCollection<Move> nextMoves = rule.filterNextMvDist(move);
+          if (!nextMoves.isEmpty()) {
+            queue.addAll(nextMoves);
+          } else if (game.isCrashAllowed() || (cD != null && cD.isCrashAhead(move))) {
+            queue.addAll(move.getMovesAfterCrash(game.getZzz()));
+          }
         }
       }
     }

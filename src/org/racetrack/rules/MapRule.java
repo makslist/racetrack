@@ -106,6 +106,8 @@ public class MapRule {
   }
 
   protected boolean hasXdFinishline(Move move) {
+    if (move == null)
+      return false;
     return isDrivenAcross(move.getX(), move.getY(), move.getXv(), move.getYv(), MapTile.FINISH.asList(), false);
   }
 

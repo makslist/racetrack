@@ -12,6 +12,7 @@ import javax.imageio.*;
 
 import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.list.*;
+import org.eclipse.collections.api.map.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.racetrack.gui.*;
@@ -27,10 +28,7 @@ public class MapAlyzor {
   public static void main(String args[]) {
     for (KaroMap map : KaroMap.getAll()) {
       try {
-        Game game = Game.getFakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2);
-
-        MapAlyzor alyzor = new MapAlyzor(map, game, 16);
-        alyzor.run();
+        new MapAlyzor(map, 8).run();
       } catch (Exception e) {
       }
     }
@@ -38,44 +36,59 @@ public class MapAlyzor {
   }
 
   private KaroMap map;
-  private Game game;
-  private String fileName;
   private int scale;
 
   public MapAlyzor(int mapId, Game game, int mapScale) {
-    this(KaroMap.get(mapId), game, mapScale);
+    this(KaroMap.get(mapId), mapScale);
   }
 
-  public MapAlyzor(KaroMap map, Game game, int mapScale) {
+  public MapAlyzor(KaroMap map, int mapScale) {
     this.map = map;
-    String filteredFilename = !map.getName().equals("") ? map.getName() : String.valueOf(map.getId());
-    NumberFormat nf = new DecimalFormat("0000");
-    fileName = "./" + nf.format(map.getId()) + " - " + filteredFilename.replaceAll("[^a-zA-Z0-9.-]", "_");
-
-    this.game = game != null ? game : Game.getFakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2);
     scale = mapScale;
   }
 
   public void run() {
+    for (MapTile cp : map.getCps()) {
+      if (map.getTilesAsMoves(cp).isEmpty()) {
+        System.out.println("CPs dont match: " + cp);
+      }
+    }
+
     ExecutorService threadPool = Executors.newWorkStealingPool();
 
-    Future<Paths> futurePath = threadPool.submit(new PathFinder(game, game.getNext()));
-    try {
-      Paths paths = futurePath.get();
+    String filteredMapname = !map.getName().equals("") ? map.getName() : String.valueOf(map.getId());
+    NumberFormat nf = new DecimalFormat("0000");
+    String fileMapname = "./" + nf.format(map.getId()) + " - " + filteredMapname.replaceAll("[^a-zA-Z0-9.-]", "_");
 
-      writeAnalyzeFile(paths);
-      writeMoveFile(paths);
-      writeImageFile(paths);
-    } catch (InterruptedException | ExecutionException e) {
-      logger.severe(e.getMessage());
+    MutableList<Game> games = Lists.mutable.empty();
+    games.add(Game.getFakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2));
+    games.add(Game.getFakeGame(map, RuleType.STANDARD, false, Dir.classic, Crash.forbidden, 2));
+    games.add(Game.getFakeGame(map, RuleType.STANDARD, true, Dir.formula1, Crash.forbidden, 2));
+    games.add(Game.getFakeGame(map, RuleType.STANDARD, true, Dir.free, Crash.forbidden, 2));
+
+    MutableMap<Game, Future<Paths>> paths = Maps.mutable.empty();
+    for (Game game : games) {
+      paths.put(game, threadPool.submit(new PathFinder(game, game.getNext())));
+    }
+
+    for (Game game : games) {
+      try {
+        String fileName = fileMapname + "_" + game.getDirection().name() + (game.withCps() ? "_cps" : "");
+        Paths path = paths.get(game).get();
+        writeAnalyzeFile(path, fileName);
+        // writeMoveFile(paths);
+        writeImageFile(path, fileName);
+      } catch (InterruptedException | ExecutionException e) {
+        logger.severe(e.getMessage());
+      }
     }
 
     threadPool.shutdown();
   }
 
-  private void writeAnalyzeFile(Paths paths) {
+  private void writeAnalyzeFile(Paths paths, String fileName) {
     short minLength = (short) paths.getMinTotalLength();
-    MutableList<Move> selectedStartMoves = paths.getMovesOfRound(0);
+    MutableList<Move> selectedStartMoves = paths.getMovesOfRound(1);
     short minCount = (short) selectedStartMoves.size();
     short minPathWidth = Short.MAX_VALUE;
     Map<Short, MutableCollection<Move>> wide = paths.getWidestPaths();
@@ -122,34 +135,34 @@ public class MapAlyzor {
     }
   }
 
-  private void writeMoveFile(Paths path) {
-    StringBuilder analyzeMoves = new StringBuilder();
-    analyzeMoves.append("Round").append(";").append("x").append(";").append("y").append(";").append("xv").append(";")
-        .append("yv").append("\n");
+  // private void writeMoveFile(Paths path) {
+  // StringBuilder analyzeMoves = new StringBuilder();
+  // analyzeMoves.append("Round").append(";").append("x").append(";").append("y").append(";").append("xv").append(";")
+  // .append("yv").append("\n");
+  //
+  // MutableCollection<Move> allMoves = path.getPartialMoves();
+  // MutableList<Move> roundMoves = allMoves.toSortedList((m1, m2) -> m1.getTotalLen() - m2.getTotalLen());
+  //
+  // for (Move move : roundMoves) {
+  // analyzeMoves.append(move.getTotalLen()).append(";").append(move.getX());
+  // analyzeMoves.append(";").append(move.getY());
+  // analyzeMoves.append(";").append(move.getXv());
+  // analyzeMoves.append(";").append(move.getYv()).append(";");
+  // analyzeMoves.append("\n");
+  // }
+  //
+  // File file = new File(fileName + ".csv");
+  // FileWriter fw = null;
+  // try {
+  // fw = new FileWriter(file);
+  // fw.write(analyzeMoves.toString());
+  // fw.close();
+  // } catch (IOException e) {
+  // logger.warning(e.getMessage());
+  // }
+  // }
 
-    MutableCollection<Move> allMoves = path.getPartialMoves();
-    MutableList<Move> roundMoves = allMoves.toSortedList((m1, m2) -> m1.getTotalLen() - m2.getTotalLen());
-
-    for (Move move : roundMoves) {
-      analyzeMoves.append(move.getTotalLen()).append(";").append(move.getX());
-      analyzeMoves.append(";").append(move.getY());
-      analyzeMoves.append(";").append(move.getXv());
-      analyzeMoves.append(";").append(move.getYv()).append(";");
-      analyzeMoves.append("\n");
-    }
-
-    File file = new File(fileName + ".csv");
-    FileWriter fw = null;
-    try {
-      fw = new FileWriter(file);
-      fw.write(analyzeMoves.toString());
-      fw.close();
-    } catch (IOException e) {
-      logger.warning(e.getMessage());
-    }
-  }
-
-  private void writeImageFile(Paths paths) {
+  private void writeImageFile(Paths paths, String fileName) {
     MapPanel mapPanel = new MapPanel(map, scale);
     NavigationPanel navPanel = new NavigationPanel(paths, scale, map.getCols(), map.getRows());
 

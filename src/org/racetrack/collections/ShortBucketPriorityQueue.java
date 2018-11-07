@@ -201,4 +201,9 @@ public class ShortBucketPriorityQueue<E> implements Queue<E> {
     indexFirst = EMPTY_QUEUE;
   }
 
+  @Override
+  public String toString() {
+    return buckets.toString();
+  }
+
 }

@@ -68,7 +68,7 @@ public class ChatModule {
 
   public ChatResponse respondInCar(Game game, Move currentMove) {
     for (Chat chat : game.getMissedMessages()) {
-      if (isAddressedToUser(chat) || game.isTheOnlyHuman(User.get(chat.getUser()))) {
+      if (isAddressedToUser(chat)) {
         for (String sentence : chat.getSentences()) {
           String answer = sentence(cleanUser(sentence));
           if (!answer.isEmpty()) {

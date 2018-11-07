@@ -29,14 +29,18 @@ public class GameRule extends MapRule {
   }
 
   public boolean hasForbidXdFinishline(Move move) {
-    return isMapCircuit() && hasXdFinishline(move) && !isXdFinishlineAllowed(move);
+    return isMapCircuit() && hasXdFinishline(move) && !isXingFinishlineAllowed(move);
+  }
+
+  public boolean hasNotXdFinishlineOnF1Circuit(Move lastMove) {
+    return isMapCircuit() && !hasXdFinishline(lastMove) && game.isFormula1();
   }
 
   public boolean hasXdFinishlineForDist(Move move) {
-    return isMapCircuit() && (game.isFormula1() || game.isClassic()) && hasXdFinishline(move);
+    return isMapCircuit() && hasXdFinishline(move) && (game.isFormula1() || game.isClassic());
   }
 
-  protected boolean isXdFinishlineAllowed(Move move) {
+  protected boolean isXingFinishlineAllowed(Move move) {
     if (isMapCircuit()) {
       switch (game.getDirection()) {
       case classic:
@@ -50,24 +54,12 @@ public class GameRule extends MapRule {
     return true;
   }
 
-  public boolean hasNotXdFinishlineOnF1Circuit(Move lastMove) {
-    return isMapCircuit() && game.isFormula1() && !hasXdFinishline(lastMove);
-  }
-
   public Predicate<Move> filterPossibles() {
     return mapRule;
   }
 
   public Paths filterPossibles(Paths possibles) {
     return possibles.filterPossibles(mapRule);
-  }
-
-  public boolean isOpponent(Player player) {
-    return !game.getNext().equals(player);
-  }
-
-  public boolean isFriend(Player player) {
-    return false;
   }
 
 }

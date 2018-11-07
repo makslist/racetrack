@@ -62,14 +62,12 @@ public class KaroClient {
   private static final Logger logger = Logger.getLogger(KaroClient.class.toString());
 
   public static String callApi(String subURL) {
-    String url = new StringBuilder(HTTPS_PROTOCOL).append("://").append(KARO_HOST).append("/").append(KARO_API)
-        .append("/").append(subURL).toString();
+    String url = HTTP_PROTOCOL + "://" + KARO_HOST + "/" + KARO_API + "/" + subURL;
     return senApiRequest(url);
   }
 
   public static String callWiki(String query) {
-    String url = new StringBuilder(HTTPS_PROTOCOL).append("://").append(WIKI_HOST).append("/").append("api.php")
-        .append("?").append(query).toString();
+    String url = HTTP_PROTOCOL + "://" + WIKI_HOST + "/" + "api.php" + "?" + query;
     return senApiRequest(url);
   }
 
@@ -129,22 +127,16 @@ public class KaroClient {
   }
 
   private String getURL(String file) {
-    StringBuilder sb = new StringBuilder(secureConnection ? HTTPS_PROTOCOL : HTTP_PROTOCOL);
-    sb.append("://").append(KARO_HOST).append("/").append(file);
-    return sb.toString();
+    return (secureConnection ? HTTPS_PROTOCOL : HTTP_PROTOCOL) + "://" + KARO_HOST + "/" + file;
   }
 
   private String getApiURL(String file) {
-    StringBuilder sb = new StringBuilder(secureConnection ? HTTPS_PROTOCOL : HTTP_PROTOCOL);
-    sb.append("://").append(KARO_HOST).append("/").append(KARO_API).append("/").append(file);
-    return sb.toString();
+    return (secureConnection ? HTTPS_PROTOCOL : HTTP_PROTOCOL) + "://" + KARO_HOST + "/" + KARO_API + "/" + file;
   }
 
   @SuppressWarnings("unused")
   private String getWikiURL(String query) {
-    StringBuilder sb = new StringBuilder(secureConnection ? HTTPS_PROTOCOL : HTTP_PROTOCOL);
-    sb.append("://").append(WIKI_HOST).append("/").append("api.php").append("?").append(query);
-    return sb.toString();
+    return (secureConnection ? HTTPS_PROTOCOL : HTTP_PROTOCOL) + "://" + WIKI_HOST + "/" + "api.php" + "?" + query;
   }
 
   public User getUser() {

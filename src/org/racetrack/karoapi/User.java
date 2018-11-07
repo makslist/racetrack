@@ -47,7 +47,6 @@ public class User {
   private static final Logger logger = Logger.getLogger(User.class.toString());
 
   private static MutableMap<String, User> users = Maps.mutable.empty();
-  private static long usersLoadedAt = 0;
   private static MutableSet<String> iqUsers = Sets.mutable.empty();
   private static MutableSet<String> reUsers = Sets.mutable.empty();
 
@@ -63,8 +62,6 @@ public class User {
   }
 
   private static final MutableMap<String, User> getUsers() {
-    if (!users.isEmpty() && (System.currentTimeMillis() - usersLoadedAt < 60 * 60 * 1000))
-      return users;
     try {
       users.clear();
       String json = KaroClient.callApi(API_USERS);
@@ -75,7 +72,6 @@ public class User {
           users.put(user.login.toLowerCase(), user);
         }
       }
-      usersLoadedAt = System.currentTimeMillis();
       return users;
     } catch (JSONException e) {
       logger.severe("JSONException while parsing: " + e.getMessage());

@@ -215,6 +215,8 @@ public class Paths {
   }
 
   public MutableList<Move> getSuccessors(int level, Move predecessor) {
+    if (predecessor == null)
+      return new FastList<>(0);
     return getMovesOfRound(level).select(m -> m.getPreds().contains(predecessor));
   }
 

@@ -11,7 +11,6 @@ import org.racetrack.config.*;
 import org.racetrack.gui.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.karoapi.Game.*;
-import org.racetrack.rules.RuleFactory.*;
 import org.racetrack.worker.*;
 
 public class Starter {
@@ -20,7 +19,7 @@ public class Starter {
   private static final int SCALE_MAX = 64;
 
   private enum Param {
-    BOT("bot"), PROP("prop"), GUI("gui"), MAPALYZE("mapalyze"), DIR("dir"), MAPSCALE("mapscale");
+    BOT("bot"), PROP("prop"), GUI("gui"), MAPALYZE("mapalyze"), MAPSCALE("mapscale");
 
     private String param;
 
@@ -70,7 +69,7 @@ public class Starter {
           startMapalyzor = true;
           analyzeMaps = new FastList<>(0);
           if (param.length >= 2) {
-            String[] mapIds = param[1].split("[;/]");
+            String[] mapIds = param[1].split("[;]");
             for (String mapId : mapIds) {
               try {
                 Integer.valueOf(mapId);
@@ -83,16 +82,6 @@ public class Starter {
                   System.out.println("File not found: " + param[1] + ".");
                 }
               }
-            }
-          }
-          break;
-        case DIR:
-          if (param.length >= 2) {
-            try {
-              direction = Dir.valueOf(param[1]);
-            } catch (IllegalArgumentException iae) {
-              System.out.println("Direction unknown: " + param[1] + ". Using classic instead.");
-              direction = Dir.classic;
             }
           }
           break;
@@ -134,8 +123,7 @@ public class Starter {
     } else if (startMapalyzor) {
       if (analyzeMaps.isEmpty()) {
         System.out.println("Please provide parameters: e.g. -" + Param.MAPALYZE.toString() + ":1;Tetris.json" + " [-"
-            + Param.DIR.toString() + ":(" + Dir.classic.toString() + "|" + Dir.formula1.toString() + "|"
-            + Dir.free.toString() + ")]" + " [-" + Param.MAPSCALE.toString() + ":(8-64)]");
+            + Param.MAPSCALE.toString() + ":(8-64)]");
       } else {
         runMapalysor(analyzeMaps, mapScale, direction);
       }
@@ -149,11 +137,9 @@ public class Starter {
       help.append("\t-").append(Param.PROP.toString()).append(":file.prop" + "\t\t\t")
           .append("Provide a property file with settings for the bot" + "\n\n");
 
-      help.append("-").append(Param.MAPALYZE.toString()).append(":(mapId[(;|/)map.json])" + "\t\t")
+      help.append("-").append(Param.MAPALYZE.toString()).append(":(mapId[(;)map.json])" + "\t\t")
           .append("Map-Analyzer" + "\n");
       help.append("\t\t\t\t\t" + "For json files, provide relative path to map-file from jar)" + "\n");
-      help.append("\t-").append(Param.DIR.toString()).append(":[").append(Dir.classic).append("|").append(Dir.formula1)
-          .append("|").append(Dir.free).append("]" + "\t" + "The direction to analyze the map").append("\n");
       help.append("\t-").append(Param.MAPSCALE.toString()).append(":(8-64)" + "\t\t")
           .append("Set the size of a tile (in pixel) in the picture of the map" + "\n\n");
 
@@ -180,15 +166,13 @@ public class Starter {
       try {
         int mapId = Integer.valueOf(map);
         KaroMap karoMap = KaroMap.get(mapId);
-        Game fakeGame = Game.getFakeGame(karoMap, RuleType.STANDARD, true, direction, Crash.forbidden, 2);
-        MapAlyzor alyzor = new MapAlyzor(karoMap, fakeGame, mapScale);
+        MapAlyzor alyzor = new MapAlyzor(karoMap, mapScale);
         alyzor.run();
       } catch (NumberFormatException nfe) {
         File mapFile = new File(map);
         if (mapFile.exists()) {
           KaroMap karoMap = KaroMap.get(mapFile);
-          Game fakeGame = Game.getFakeGame(karoMap, RuleType.STANDARD, true, direction, Crash.forbidden, 2);
-          MapAlyzor alyzor = new MapAlyzor(karoMap, fakeGame, mapScale);
+          MapAlyzor alyzor = new MapAlyzor(karoMap, mapScale);
           alyzor.run();
         }
       }

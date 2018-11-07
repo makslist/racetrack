@@ -146,6 +146,7 @@ public class KaroMap {
         cps.add(MapTile.valueOf(cpArray.getInt(i)));
       }
     }
+    mapcode = json.optString(MAPCODE);
     active = json.optBoolean(ACTIVE);
     night = json.optInt(NIGHT);
   }
@@ -237,12 +238,30 @@ public class KaroMap {
   }
 
   private char[][] readMapFromMapcode() {
-    String mapcode2 = getMapcode();
-    String[] split = mapcode2.split("\\R|(\\\\n)");
-    char[][] map = new char[split.length][];
+    String[] split = getMapcode().split("\\R|(\\\\n)");
+    map = new char[split.length][];
+    if (rows == 0) {
+      rows = split.length;
+    }
+    if (rows != split.length) {
+      logger.warning("Columns don't match: (" + rows + "/" + split.length + ")");
+    }
     for (int i = 0; i < split.length; i++) {
       map[i] = split[i].toCharArray();
+      if (cols == 0) {
+        cols = map[i].length;
+      }
+      if (cols != map[i].length) {
+        logger.warning("Rows don't match: " + cols + "/" + map[i].length);
+      }
     }
+
+    for (MapTile cp : cps) {
+      if (getTilesAsMoves(cp).size() == 0) {
+        logger.warning("Checkpoint " + cp + " isn't on the map.");
+      }
+    }
+
     return map;
   }
 
@@ -307,6 +326,9 @@ public class KaroMap {
   }
 
   public MutableList<Move> getTilesAsMoves(MapTile tile) {
+    if (map == null) {
+      readMapFromMapcode();
+    }
     MutableList<Move> tiles = new FastList<>(0);
     for (int j = 0; j < getRows(); j++) {
       for (int i = 0; i < getCols(); i++) {
@@ -320,7 +342,7 @@ public class KaroMap {
 
   public MapTile getTileOf(int x, int y) {
     if (map == null) {
-      map = readMapFromMapcode();
+      readMapFromMapcode();
     }
     return MapTile.valueOf(map[y][x]);
   }

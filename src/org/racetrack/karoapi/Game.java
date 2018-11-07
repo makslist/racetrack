@@ -57,7 +57,7 @@ public class Game {
     game.addPlayer(bot);
     int restPlayerCount = Math.max(Math.round(map.getPlayers() * 0.75f), map.getPlayers() - 2) - 1;
 
-    MutableList<User> nonBlocking = User.getNonBlocking();
+    MutableList<User> nonBlocking = User.getNonBlocking().reject(p -> p.isBot());
     if (withIq) {
       nonBlocking = nonBlocking.select(u -> u.isWithIq());
     }
@@ -221,12 +221,6 @@ public class Game {
   public Player getPlayer(User user) {
     int userId = user.getId();
     return getPlayer(userId);
-  }
-
-  public boolean isTheOnlyHuman(User user) {
-    if (user == null || user.isBot())
-      return false;
-    return getActivePlayers().reject(p -> p.getId() == user.getId()).allSatisfy(p -> p.isBot());
   }
 
   public Player getNext() {

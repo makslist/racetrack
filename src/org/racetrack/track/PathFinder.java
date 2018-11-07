@@ -52,7 +52,7 @@ public class PathFinder implements Callable<Paths> {
     crashDetector = new CrashDetector(rule, possiblePaths.getEndMoves());
 
     if (rule.hasNotXdFinishlineOnF1Circuit(player.getMotion())) {
-      possiblePaths = findPathToCp(possiblePaths, MapTile.FINISH);
+      possiblePaths = findPathToCp(possiblePaths, MapTile.FINISH, true);
     }
 
     MutableList<Tour> tours = game.withCps() ? tsp.solve(possiblePaths.getEndMoves(), player.getMissingCps())
@@ -109,14 +109,14 @@ public class PathFinder implements Callable<Paths> {
       Paths intermedPaths = possibles;
       for (MapTile cp : tour.getSequence()) {
         if (!intermedPaths.isEmpty()) {
-          intermedPaths = findPathToCp(intermedPaths, cp);
+          intermedPaths = findPathToCp(intermedPaths, cp, false);
         }
       }
       return intermedPaths;
     };
   }
 
-  protected Paths findPathToCp(Paths possibles, MapTile cp) {
+  protected Paths findPathToCp(Paths possibles, MapTile cp, boolean crossF1Finish) {
     MutableIntObjectMap<Move> visitedMoves = new IntObjectHashMap<>(2 << 16);
     Paths filtered = rule.filterPossibles(possibles);
     Queue<Move> queue = ShortBucketPriorityQueue.of(filtered.getEndMoves(),
@@ -128,7 +128,8 @@ public class PathFinder implements Callable<Paths> {
     while (!queue.isEmpty()) {
       Move move = queue.poll();
       int pathLength = move.getPathLen();
-      if ((pathLength > minPathLength) || (pathLength > minPathToCpLength + (cp.isFinish() ? 0 : MAX_MOVE_TRESHOLD)))
+      if ((pathLength > minPathLength)
+          || (pathLength > minPathToCpLength + (cp.isFinish() && !crossF1Finish ? 0 : MAX_MOVE_TRESHOLD)))
         return shortestPaths;
 
       Move visitedMove = visitedMoves.get(move.hashCode());

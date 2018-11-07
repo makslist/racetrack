@@ -40,7 +40,9 @@ public class Player {
   public static Player getFakePlayer(Game game, int id, MutableCollection<MapTile> missingCps,
       Collection<Move> possibles) {
     Player player = new Player();
+    player.game = game;
     player.id = id;
+    player.name = "Test Dummy";
     player.missingCps = missingCps;
     player.possibles = new FastList<>(possibles);
     player.status = Status.OK;

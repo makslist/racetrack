@@ -9,8 +9,8 @@ public class RuleFactory {
 
     STANDARD("Non"), RE(REmulAdeRule.TITLE_RE), REMULADE(REmulAdeRule.TITLE_REMULADE), EDGE(EdgeRule.TITLE), EDGE_DIR(
         EdgeDirRule.TITLE), PRIME_ACC(PrimeAccRule.TITLE), REPEAT_MOVE(DoubleMoveRule.TITLE), NUMPAD(
-            NumpadRule.TITLE), BRAKE_CLAMP(BrakeClampRule.TITLE), SPEED_LIMIT(SpeedLimitRule.TITLE), X_OR_Y_0(
-                XorY0Rule.TITLE), TERMINATOR(TerminatorRule.TITLE), TEAM(TeamRule.TITLE), CRAZZY(CraZZZyRule.TITLE);
+            NumpadRule.TITLE), BRAKE_CLAMP(
+                BrakeClampRule.TITLE), SPEED_LIMIT(SpeedLimitRule.TITLE), X_OR_Y_0(XorY0Rule.TITLE);
 
     public static RuleType valueOfTitle(String gameTitle) {
       if (gameTitle == null)
@@ -61,12 +61,6 @@ public class RuleFactory {
       return new SpeedLimitRule(game);
     case X_OR_Y_0:
       return new XorY0Rule(game);
-    case TERMINATOR:
-      return new TerminatorRule(game);
-    case TEAM:
-      return new TeamRule(game);
-    case CRAZZY:
-      return new CraZZZyRule(game);
     default:
       return new GameRule(game);
     }
