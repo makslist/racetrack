@@ -99,7 +99,13 @@ public final class TSP {
         }
       }
     }
-    logger.warning("No valid path found from " + startMoves + " to " + toCp);
+    if (toCp.isFinish()) {
+      logger.warning("No valid path found from " + startMoves + " to " + toCp + ". This map is recognized as "
+          + (rule.isMapCircuit() ? "circuit" : "non-circuit")
+          + ". Set this map to non/circuit manually if this error still happens.");
+    } else {
+      logger.warning("No path found from " + startMoves + " to " + toCp.toString());
+    }
     return Short.MAX_VALUE;
   };
 

@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 import org.racetrack.karoapi.*;
-import org.racetrack.rules.MapRule;
 
 public class KaroMapTest_SucessfulThreeStepMoves {
 

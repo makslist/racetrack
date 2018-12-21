@@ -34,6 +34,7 @@ public class LogMove extends Move implements Comparable<LogMove> {
 
     time = json.optString(T);
     msg = json.optString(MSG);
+    crash = json.optInt(CRASH) == 1 ? true : false;
   }
 
   protected LogMove(JSONObject json, Move predecessor) {
@@ -77,8 +78,13 @@ public class LogMove extends Move implements Comparable<LogMove> {
 
   @Override
   public boolean equals(Object obj) {
-    LogMove move = (LogMove) obj;
-    return x == move.x && y == move.y && xv == move.xv && yv == move.yv && (time != null && time.equals(move.time));
+    if (obj instanceof LogMove) {
+      LogMove move = (LogMove) obj;
+      return x == move.x && y == move.y && xv == move.xv && yv == move.yv && (time != null && time.equals(move.time));
+    } else {
+      Move move = (Move) obj;
+      return move.equals(this);
+    }
   }
 
   @Override

@@ -57,7 +57,7 @@ public class Game {
     game.addPlayer(bot);
     int restPlayerCount = Math.max(Math.round(map.getPlayers() * 0.75f), map.getPlayers() - 2) - 1;
 
-    MutableList<User> nonBlocking = User.getNonBlocking().reject(p -> p.isBot());
+    MutableList<User> nonBlocking = User.getNewGameUsers();
     if (withIq) {
       nonBlocking = nonBlocking.select(u -> u.isWithIq());
     }

@@ -60,8 +60,7 @@ public class ChatModule {
 
   private ChatModule(String userLogin) {
     this.userLogin = userLogin;
-    userPattern = Pattern.compile("@" + userLogin + "|\\A[\\W\\s]*" + userLogin + "|" + userLogin + "[\\W\\s]*\\Z",
-        Pattern.CASE_INSENSITIVE);
+    userPattern = Pattern.compile("@" + userLogin + "|\\A[\\W\\s]*" + userLogin, Pattern.CASE_INSENSITIVE);
 
     script = Script.getInstance();
   }
@@ -91,14 +90,14 @@ public class ChatModule {
             String title = "Ich dreh' eine Runde mit " + challengerLogin + "!";
 
             if (Replacements.NEWGAMESOME.matches(answer))
-              return new ChatResponse(Game.newWith(title, userLogin, Lists.mutable.with(challengerLogin)));
+              return new ChatResponse(Game.newWith(title, userLogin,
+                  Lists.mutable.with(challengerLogin).withAll(User.getNonBlocking().collect(u -> u.getLogin()))));
             else if (Replacements.NEWGAMEWITH.matches(answer)) {
               MutableList<String> players = Lists.mutable.of(challengerLogin);
               players.withAll(Arrays.asList(answer.split("[ ,;/]")));
-
               return new ChatResponse(Game.newWith(title, userLogin, players));
-            } else if (Replacements.NEWGAME.matches(answer)) {
-            }
+            } else if (Replacements.NEWGAME.matches(answer))
+              return new ChatResponse(Game.newWith(title, userLogin, Lists.mutable.with(challengerLogin)));
 
           } else {
             String replaceConstants = replaceConstants(answer, chat.getUser());

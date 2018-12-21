@@ -22,8 +22,8 @@ public class MapRule {
 
   protected KaroMap map;
 
-  protected Predicate<Move> mapRule = move -> (move.getTotalLen() == 0
-      || (move.isMoving() && !isOffTrack(move.getX(), move.getY(), move.getXv(), move.getYv())));
+  protected Predicate<Move> mapRule = move -> move.isMoving()
+      && !isOffTrack(move.getX(), move.getY(), move.getXv(), move.getYv());
 
   private Boolean isMapCircuitCached;
 
@@ -113,7 +113,7 @@ public class MapRule {
 
   protected boolean hasXdFinishline(LogMove lastMove) {
     Move move = lastMove;
-    while (move != null && move != move.getPred()) {
+    while (move != null) {
       if (hasXdFinishline(move))
         return true;
       move = move.getPred();
@@ -122,149 +122,76 @@ public class MapRule {
   }
 
   /**
+   * Bresenham's line algorithm with modification to check all crossed fields. See Karopapier sourcecode at GitHub.
+   *
    * @param withCpRule
    *          The Karopapier website only recognized a checkpoint as passed when driven over as last MapTile by the
    *          vector. When checking for crossing e.g. grass this behavior is undesired and the cpRule should be disabled
    */
   private boolean isDrivenAcross(int x, int y, int xv, int yv, Collection<MapTile> tiles, boolean withCpRule) {
-    if (yv == 0)
-      return isHorizontalAcross(x, y, xv, tiles, withCpRule);
-    else if (xv == 0)
-      return isVerticalAcross(x, y, yv, tiles, withCpRule);
-    else if (xv == yv || xv == -yv)
-      return isDiagonalAcross(x, y, xv, yv, tiles, withCpRule);
+    int x0 = x - xv;
+    int y0 = y - yv;
 
-    else if (Math.abs(xv) > Math.abs(yv))
-      return isDominantHorizontalAcross(x, y, xv, yv, tiles, withCpRule);
-    else if (Math.abs(xv) < Math.abs(yv))
-      return isDominantVerticalAcross(x, y, xv, yv, tiles, withCpRule);
+    int incx = (int) Math.signum(x - x0);
+    int incy = (int) Math.signum(y - y0);
 
-    return false;
-  }
+    int dx = Math.abs(xv);
+    int dy = Math.abs(yv);
 
-  private boolean isHorizontalAcross(int x, int y, int xv, Collection<MapTile> tiles, boolean cpMode) {
-    for (int i = 0; i < Math.abs(xv); i++) {
-      int x2 = x - (int) Math.signum(xv) * i;
-      MapTile mapTile = map.getTileOf(x2, y);
+    int pdx, pdy, qdx, qdy, ddx, ddy;
+    int el, es;
+    if (dx > dy) { // x is fast direction
+      pdx = incx;
+      pdy = 0;
+      qdx = 0;
+      qdy = incy;
+      ddx = incx;
+      ddy = incy;
+      es = dy;
+      el = dx;
+    } else { // y is fast direction
+      pdx = 0;
+      pdy = incy;
+      qdx = incx;
+      qdy = 0;
+      ddx = incx;
+      ddy = incy;
+      es = dx;
+      el = dy;
+    }
+
+    float err = (el - es) / 2f;
+    /*
+     * the signum of err indicates on which side of the vector the center of the last considered box is located. if
+     * there is a deviation in the * "slower" direction, err is positive, and we take a step in the "faster"
+     * direction.if there is a deviation in the "fast" direction, err is negative, and we take a step in the "slower"
+     * direction.
+     */
+    while (true) {
+      MapTile mapTile = map.getTileOf(x0, y0);
       if (tiles.contains(mapTile))
         return true;
-      else if (cpMode && mapTile.isCpOrFinish())
+      else if (withCpRule && mapTile.isCpOrFinish())
         return false;
-    }
-    return false;
-  }
 
-  private boolean isVerticalAcross(int x, int y, int yv, Collection<MapTile> tiles, boolean cpMode) {
-    for (int i = 0; i < Math.abs(yv); i++) {
-      int y2 = y - (int) Math.signum(yv) * i;
-      MapTile mapTile = map.getTileOf(x, y2);
-      if (tiles.contains(mapTile))
-        return true;
-      else if (cpMode && mapTile.isCpOrFinish())
+      if (x0 == x && y0 == y)
         return false;
-    }
-    return false;
-  }
 
-  private boolean isDiagonalAcross(int x, int y, int xv, int yv, Collection<MapTile> tiles, boolean cpMode) {
-    for (int i = 0; i < Math.abs(xv); i++) {
-      int diagX = x - (int) Math.signum(xv) * i;
-      int diagY = y - (int) Math.signum(yv) * i;
-      MapTile mapTile = map.getTileOf(diagX, diagY);
-      if (tiles.contains(mapTile))
-        return true;
-      else if (cpMode && mapTile.isCpOrFinish())
-        return false;
-    }
-    return false;
-  }
-
-  private boolean isDominantHorizontalAcross(int x, int y, int xv, int yv, Collection<MapTile> tiles, boolean cpMode) {
-    for (int i = 0; i < Math.abs(xv); i++) {
-      double sectX = x - (Math.signum(xv) * (i + 0.5));
-      double sectY = getIntersectionWithMapGrid(x, y, xv, yv, sectX);
-
-      int xL = (int) sectX, xU = xL + 1;
-      int yU = (int) Math.round(sectY), yL = yU;
-      if ((sectY - (int) sectY) == 0.5) {
-        if (Math.signum(xv) * Math.signum(yv) < 0) {
-          yU--;
-        } else {
-          yL--;
-        }
-      }
-      MapTile lowerTile = map.getTileOf(xL, yL);
-      MapTile upperTile = map.getTileOf(xU, yU);
-
-      if (Math.signum(xv) < 0) {
-        if (tiles.contains(lowerTile))
-          return true;
-        else if (cpMode && lowerTile.isCpOrFinish())
-          return false;
-        if (tiles.contains(upperTile))
-          return true;
-        else if (cpMode && upperTile.isCpOrFinish())
-          return false;
-      } else {
-        if (tiles.contains(upperTile))
-          return true;
-        else if (cpMode && upperTile.isCpOrFinish())
-          return false;
-        if (tiles.contains(lowerTile))
-          return true;
-        else if (cpMode && lowerTile.isCpOrFinish())
-          return false;
+      if (err < 0) { // move in slow direction
+        err += el;
+        x0 += qdx;
+        y0 += qdy;
+      } else if (err > 0) { // move in fast direction
+        err -= es;
+        x0 += pdx;
+        y0 += pdy;
+      } else { // diagonal
+        err += el;
+        err -= es;
+        x0 += ddx;
+        y0 += ddy;
       }
     }
-    return false;
-  }
-
-  private boolean isDominantVerticalAcross(int x, int y, int xv, int yv, Collection<MapTile> tiles, boolean cpMode) {
-    for (int i = 0; i < Math.abs(yv); i++) {
-      double sectY = y - (Math.signum(yv) * (i + 0.5));
-      double sectX = getIntersectionWithMapGrid(y, x, yv, xv, sectY);
-
-      int yL = (int) sectY, yU = yL + 1;
-      int xU = (int) Math.round(sectX), xL = xU;
-      if ((sectX - (int) sectX) == 0.5) {
-        if (Math.signum(xv) * Math.signum(yv) < 0) {
-          xU--;
-        } else {
-          xL--;
-        }
-      }
-      MapTile lowerTile = map.getTileOf(xL, yL);
-      MapTile upperTile = map.getTileOf(xU, yU);
-
-      if (Math.signum(yv) < 0) {
-        if (tiles.contains(lowerTile))
-          return true;
-        else if (cpMode && lowerTile.isCpOrFinish())
-          return false;
-        if (tiles.contains(upperTile))
-          return true;
-        else if (cpMode && upperTile.isCpOrFinish())
-          return false;
-      } else {
-        if (tiles.contains(upperTile))
-          return true;
-        else if (cpMode && upperTile.isCpOrFinish())
-          return false;
-        if (tiles.contains(lowerTile))
-          return true;
-        else if (cpMode && lowerTile.isCpOrFinish())
-          return false;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Determines the vector equation (x y) - alpha * (xv yv) = (wx X)
-   */
-  private double getIntersectionWithMapGrid(int x, int y, int xv, int yv, double wx) {
-    double alpha = (wx - x) / -xv;
-    return y - (alpha * yv);
   }
 
   protected AngleRange getAngleForFinishVector() {

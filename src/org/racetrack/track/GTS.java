@@ -153,7 +153,7 @@ public class GTS implements Callable<GameAction> {
     MutableList<Player> actualPlayers = game.isStarted() ? game.getNearestPlayers(player, 5, 5)
         : (game.getMap().isCpClustered(MapTile.START) && game.getActivePlayersCount() <= 5 ? game.getActivePlayers()
             : Lists.mutable.with(player));
-    System.out.println(game.getId() + " " + game.getName() + " with players: " + actualPlayers);
+    System.out.println(game.getId() + " " + game.getName() + " " + actualPlayers);
 
     GameRule rule = RuleFactory.getInstance(game);
 
@@ -211,8 +211,7 @@ public class GTS implements Callable<GameAction> {
     Move bestMove = play(player, playersNotYetMoved, currentState, round);
     threadPool.shutdownNow();
 
-    System.out
-        .println(game.getId() + " Result: " + bestMove + " players: " + actualPlayers + " with strategy : " + strategy);
+    System.out.println(game.getId() + " Result: " + bestMove + " with strategy : " + strategy);
     duration = (System.currentTimeMillis() - duration) / 1000;
     System.out.println(game.getId() + " " + duration + "s to calculate with " + evaluations.size() + " nodes.");
 
@@ -235,10 +234,15 @@ public class GTS implements Callable<GameAction> {
   private Move play(Player player, MutableList<Player> playersToMove, GameState state, int round) {
     Paths path = paths.get(player);
     MutableMap<Evaluation, Move> moveRatings = Maps.mutable.empty();
+
+    System.out.print(game.getId() + " Ratings:");
     for (Move move : path.getMovesOfRound(round).reject(m -> state.isTaken(m))) {
-      moveRatings.put(play(playersToMove.reject(p -> p.equals(player)), state.with(player, move), round, null), move);
+      Evaluation eval = play(playersToMove.reject(p -> p.equals(player)), state.with(player, move), round, null);
+      System.out.print(" " + move + " " + eval);
+      moveRatings.put(eval, move);
       state.without(player);
     }
+    System.out.println("");
 
     return moveRatings.get(strategy.evaluate(player, new FastList<>(moveRatings.keySet())));
   }

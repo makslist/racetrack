@@ -71,69 +71,84 @@ public class MapAlyzor {
       paths.put(game, threadPool.submit(new PathFinder(game, game.getNext())));
     }
 
+    System.out.print("|-\r\n" + "| " + map.getId() + " || " + map.getName());
     for (Game game : games) {
       try {
         String fileName = fileMapname + "_" + game.getDirection().name() + (game.withCps() ? "_cps" : "");
         Paths path = paths.get(game).get();
-        writeAnalyzeFile(path, fileName);
+
+        int minLength = path.getMinTotalLength();
+        int minCount = path.getMovesOfRound(1).size();
+        int startMoves = map.getTilesAsMoves(MapTile.START).size();
+        Map<Short, MutableCollection<Move>> wide = path.getWidestPaths();
+        short minPathWidth = Short.MAX_VALUE;
+        for (short depth : new FastList<Short>(wide.keySet()).sortThis()) {
+          int width = wide.get(depth).size();
+          if (width < minPathWidth && depth < minLength) { // last move doesn't count as occupied
+            minPathWidth = (short) width;
+          }
+        }
+
+        System.out.print(" || " + minLength + " || " + minCount + "/" + startMoves + " || " + minPathWidth);
+        // writeAnalyzeFile(path, fileName);
         // writeMoveFile(paths);
         writeImageFile(path, fileName);
       } catch (InterruptedException | ExecutionException e) {
         logger.severe(e.getMessage());
       }
     }
+    System.out.println();
 
     threadPool.shutdown();
   }
 
-  private void writeAnalyzeFile(Paths paths, String fileName) {
-    short minLength = (short) paths.getMinTotalLength();
-    MutableList<Move> selectedStartMoves = paths.getMovesOfRound(1);
-    short minCount = (short) selectedStartMoves.size();
-    short minPathWidth = Short.MAX_VALUE;
-    Map<Short, MutableCollection<Move>> wide = paths.getWidestPaths();
-    Map<Short, MutableCollection<Move>> wideFull = Maps.mutable.empty();
-
-    for (Move move : paths.getPartialMoves()) {
-      MutableCollection<Move> lenMoves = wideFull.getOrDefault(move.getTotalLen(), new FastList<>());
-      lenMoves.add(move);
-      wideFull.putIfAbsent(move.getTotalLen(), lenMoves);
-    }
-
-    Comparator<Move> posComparator = (m1, m2) -> {
-      int diffX = m1.getX() - m2.getX();
-      return diffX != 0 ? diffX : m1.getY() - m2.getY();
-    };
-    StringBuilder analyzeMoves = new StringBuilder();
-    for (short depth : new FastList<Short>(wide.keySet()).sortThis()) {
-      int width = wide.get(depth).size();
-      analyzeMoves.append("Length: ").append(depth).append(", width: ").append(width).append(" positions: ")
-          .append(wide.get(depth).toSortedList(posComparator)).append("\n");
-      if (width < minPathWidth && depth < minLength) { // last move doesn't count as occupied
-        minPathWidth = (short) width;
-      }
-    }
-    MutableList<Move> startMoves = map.getTilesAsMoves(MapTile.START);
-    StringBuilder result = new StringBuilder().append("Map ").append(map.getId()).append(" has ").append(minCount)
-        .append("/").append(startMoves.size()).append(" optimal starts, length ").append(minLength)
-        .append(", bottleneck ").append(minPathWidth).append("\n");
-    analyzeMoves.append("\n").append(result);
-    System.out.println(result.toString());
-
-    File file = new File(fileName + ".log");
-    FileWriter fw = null;
-    try {
-      fw = new FileWriter(file);
-      fw.write(analyzeMoves.toString());
-    } catch (IOException e) {
-      logger.warning(e.getMessage());
-    } finally {
-      try {
-        fw.close();
-      } catch (IOException e) {
-      }
-    }
-  }
+  // private void writeAnalyzeFile(Paths paths, String fileName) {
+  // short minLength = (short) paths.getMinTotalLength();
+  // MutableList<Move> selectedStartMoves = paths.getMovesOfRound(1);
+  // short minCount = (short) selectedStartMoves.size();
+  // short minPathWidth = Short.MAX_VALUE;
+  // Map<Short, MutableCollection<Move>> wide = paths.getWidestPaths();
+  // Map<Short, MutableCollection<Move>> wideFull = Maps.mutable.empty();
+  //
+  // for (Move move : paths.getPartialMoves()) {
+  // MutableCollection<Move> lenMoves = wideFull.getOrDefault(move.getTotalLen(), new FastList<>());
+  // lenMoves.add(move);
+  // wideFull.putIfAbsent(move.getTotalLen(), lenMoves);
+  // }
+  //
+  // Comparator<Move> posComparator = (m1, m2) -> {
+  // int diffX = m1.getX() - m2.getX();
+  // return diffX != 0 ? diffX : m1.getY() - m2.getY();
+  // };
+  // StringBuilder analyzeMoves = new StringBuilder();
+  // for (short depth : new FastList<Short>(wide.keySet()).sortThis()) {
+  // int width = wide.get(depth).size();
+  // analyzeMoves.append("Length: ").append(depth).append(", width: ").append(width).append(" positions: ")
+  // .append(wide.get(depth).toSortedList(posComparator)).append("\n");
+  // if (width < minPathWidth && depth < minLength) { // last move doesn't count as occupied
+  // minPathWidth = (short) width;
+  // }
+  // }
+  // MutableList<Move> startMoves = map.getTilesAsMoves(MapTile.START);
+  // String result = "Map " + map.getId() + " has " + minCount + "/" + startMoves.size() + " optimal starts, length "
+  // + minLength + ", bottleneck " + minPathWidth + "\n";
+  // analyzeMoves.append("\n").append(result);
+  // System.out.println(result.toString());
+  //
+  // File file = new File(fileName + ".log");
+  // FileWriter fw = null;
+  // try {
+  // fw = new FileWriter(file);
+  // fw.write(analyzeMoves.toString());
+  // } catch (IOException e) {
+  // logger.warning(e.getMessage());
+  // } finally {
+  // try {
+  // fw.close();
+  // } catch (IOException e) {
+  // }
+  // }
+  // }
 
   // private void writeMoveFile(Paths path) {
   // StringBuilder analyzeMoves = new StringBuilder();

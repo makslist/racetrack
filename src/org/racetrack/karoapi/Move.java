@@ -16,6 +16,7 @@ public class Move {
   protected static final String Y = "y";
   protected static final String XV = "xv";
   protected static final String YV = "yv";
+  protected static final String CRASH = "crash";
 
   public static Predicate<Move> equalsPosition(MutableCollection<Move> moves) {
     return move -> moves.anySatisfy(other -> other.equalsPos(move));
@@ -32,10 +33,18 @@ public class Move {
     return moves;
   }
 
+  public static Move crash(int x, int y, Move predecessor) {
+    Move move = new Move(x, y, 0, 0);
+    move.crash = true;
+    move.setPredecessor(predecessor);
+    return move;
+  }
+
   protected short x;
   protected short y;
   protected short xv;
   protected short yv;
+  protected boolean crash;
   protected MutableList<Move> preds = new FastList<>(0);
   protected short totalLen = 0;
   protected short pathLen = 0;
@@ -63,11 +72,13 @@ public class Move {
     yv = move.yv;
     totalLen = move.totalLen;
     pathLen = move.pathLen;
-    preds = new FastList<>(move.preds);
+    if (move.preds != null) {
+      preds.addAll(move.preds);
+    }
   }
 
   protected void setPredecessor(Move predecessor) {
-    if (predecessor != null) {
+    if (predecessor != null && !equals(predecessor)) {
       preds.add(predecessor);
       totalLen = predecessor.totalLen;
       pathLen = predecessor.pathLen;
@@ -116,7 +127,7 @@ public class Move {
   }
 
   public Move getPred() {
-    return preds.isEmpty() ? this : preds.getFirst();
+    return preds.isEmpty() ? null : preds.getFirst();
   }
 
   public MutableCollection<Move> getNonCrashPredecessors() {
@@ -149,18 +160,20 @@ public class Move {
   }
 
   public boolean isCrash() {
-    return totalLen > 0 && (xv == 0 && yv == 0);
+    return crash;
   }
 
   public boolean isMoving() {
-    return totalLen > 0 && (xv != 0 || yv != 0);
+    return totalLen == 0 || xv != 0 || yv != 0;
   }
 
   public MutableCollection<Move> getNext() {
     MutableCollection<Move> next = new FastList<>(9);
     for (int i = -1; i <= 1; i++) {
       for (int j = -1; j <= 1; j++) {
-        next.add(new Move(x + xv + i, y + yv + j, xv + i, yv + j, this));
+        if (xv + i != 0 || yv + j != 0) {
+          next.add(new Move(x + xv + i, y + yv + j, xv + i, yv + j, this));
+        }
       }
     }
     return next;
@@ -198,14 +211,13 @@ public class Move {
    */
   public boolean isRepeat() {
     Move pred = getPred();
-    return xv == pred.xv && yv == pred.yv;
+    return pred != null && xv == pred.xv && yv == pred.yv;
   }
 
   public MutableCollection<Move> getMovesAfterCrash(int zzz) {
     if (isCrash())
       return new FastList<Move>(0);
-    // after crash vector has no speed
-    return getZzzPredecessors(zzz, zzz).collect(move -> new Move(move.x, move.y, 0, 0, this));
+    return getZzzPredecessors(zzz, zzz).collect(move -> Move.crash(move.x, move.y, this));
   }
 
   protected MutableCollection<Move> getZzzPredecessors(final int zzz, final int depth) {
@@ -279,7 +291,6 @@ public class Move {
       } else if (!searchMode && preds.size() > 1) {
         it.remove();
       }
-      // crashsOnPath.remove(this);
     }
 
     return isOnCrashPath;

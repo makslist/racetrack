@@ -10,7 +10,7 @@ public enum MapTile {
   ROAD('O', new Color(210, 210, 210), new Color(180, 180, 180)), GRASS('X', new Color(0, 200, 0),
       new Color(0, 180, 0)), NIGHT('.', Color.BLACK, Color.BLACK), FINISH('F', Color.WHITE, Color.BLACK), GOLD('G',
           new Color(255, 201, 14), new Color(255, 255, 0)), LAVA('L', new Color(240, 0, 0), new Color(180, 0, 0)), SNOW(
-              'N', Color.WHITE, new Color(120, 120, 120)), PARC('P', new Color(200, 200, 200),
+              'N', Color.WHITE, new Color(220, 220, 220)), PARC('P', new Color(200, 200, 200),
                   new Color(120, 120, 120)), START('S', new Color(60, 60, 60), new Color(160, 160, 160)), TAR('T',
                       Color.BLACK, new Color(40, 40, 40)), MOUNTAIN('V', new Color(100, 100, 100), Color.BLACK), WATER(
                           'W', new Color(0, 60, 200), new Color(0, 30, 100)), SAND('Y', new Color(230, 230, 115),

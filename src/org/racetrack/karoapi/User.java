@@ -1,10 +1,13 @@
 package org.racetrack.karoapi;
 
+import java.io.*;
+import java.net.*;
+import java.security.*;
 import java.util.*;
+import java.util.function.*;
 import java.util.logging.*;
 import java.util.regex.*;
 
-import org.eclipse.collections.api.block.predicate.*;
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.map.*;
 import org.eclipse.collections.api.set.*;
@@ -45,6 +48,60 @@ public class User {
   private static final String BOT = "bot";
 
   private static final Logger logger = Logger.getLogger(User.class.toString());
+
+  private static MutableList<String> getBlacklistUsers() {
+    FastList<String> blacklist = new FastList<String>();
+    try {
+      CodeSource codeSource = User.class.getProtectionDomain().getCodeSource();
+      File jarFile = new File(codeSource.getLocation().toURI().getPath());
+      File jarDir = jarFile.getParentFile();
+      File blacklistFile = new File(jarDir, "blacklist.json");
+
+      if (blacklistFile.exists()) {
+        System.out.println("Loading blacklist-file " + blacklistFile);
+        BufferedReader reader = new BufferedReader(new FileReader(blacklistFile));
+
+        StringBuilder sb = new StringBuilder();
+        String line = reader.readLine();
+        while (line != null) {
+          sb.append(line);
+          sb.append(System.lineSeparator());
+          line = reader.readLine();
+        }
+        String blacklistString = sb.toString();
+        reader.close();
+        JSONObject blacklistJSON = new JSONObject(blacklistString);
+        JSONArray unfair = blacklistJSON.optJSONArray("unfair");
+        if (unfair != null) {
+          for (Object obj : unfair) {
+            blacklist.add(obj.toString());
+          }
+        }
+        JSONArray quitter = blacklistJSON.optJSONArray("quitter");
+        if (quitter != null) {
+          for (Object obj : quitter) {
+            blacklist.add(obj.toString());
+          }
+        }
+        JSONArray inactive = blacklistJSON.optJSONArray("inactive");
+        if (inactive != null) {
+          for (Object obj : inactive) {
+            blacklist.add(obj.toString());
+          }
+        }
+
+        return blacklist;
+      }
+    } catch (FileNotFoundException fnfe) {
+      logger.severe(fnfe.getMessage());
+    } catch (IOException ioe) {
+      logger.severe(ioe.getMessage());
+    } catch (URISyntaxException use) {
+      logger.severe(use.getMessage());
+    }
+
+    return blacklist;
+  }
 
   private static MutableMap<String, User> users = Maps.mutable.empty();
   private static MutableSet<String> iqUsers = Sets.mutable.empty();
@@ -141,6 +198,11 @@ public class User {
     return getActive().select(user -> !user.isBlocking());
   }
 
+  public static final MutableList<User> getNewGameUsers() {
+    MutableList<String> blacklistUsers = getBlacklistUsers();
+    return getNonBlocking().reject(p -> blacklistUsers.contains(p.getLogin()));
+  }
+
   public static final MutableList<User> getDesperates() {
     return getNonBlocking().select(user -> user.isDesperate());
   }
@@ -193,6 +255,7 @@ public class User {
   private int dran;
   private int activeGames;
   private boolean acceptsDayGames;
+  @SuppressWarnings("unused")
   private boolean acceptsNightGames;
   private int maxGames;
   private int sound;
@@ -251,14 +314,6 @@ public class User {
 
   public int getActiveGames() {
     return activeGames;
-  }
-
-  public boolean isAcceptsDayGames() {
-    return acceptsDayGames;
-  }
-
-  public boolean isAcceptsNightGames() {
-    return acceptsNightGames;
   }
 
   public int getMaxGames() {
@@ -337,7 +392,7 @@ public class User {
   }
 
   public boolean isInvitable() {
-    return getMaxGames() == 0 || getActiveGames() < getMaxGames();
+    return acceptsDayGames && (getMaxGames() == 0 || getActiveGames() < getMaxGames());
   }
 
   public boolean isActive() {

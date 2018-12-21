@@ -333,7 +333,7 @@ public class KaroMap {
     for (int j = 0; j < getRows(); j++) {
       for (int i = 0; i < getCols(); i++) {
         if (tile.equals(getTileOf(i, j))) {
-          tiles.add(new Move(i, j, 0, 0, null));
+          tiles.add(new Move(i, j, 0, 0));
         }
       }
     }

@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 import org.racetrack.karoapi.*;
-import org.racetrack.rules.MapRule;
 
 public class KaroMapTest_FailingOneStepMoves {
 
@@ -20,56 +19,56 @@ public class KaroMapTest_FailingOneStepMoves {
   public void whenHorizontalRight() {
     Move move = new Move(1, 1, 1, 0);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenHorizontalLeft() {
     Move move = new Move(1, 1, -1, 0);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenVerticalDown() {
     Move move = new Move(1, 1, 0, 1);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenVerticalUp() {
     Move move = new Move(1, 1, 0, -1);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenDiagonalDownRight() {
     Move move = new Move(1, 1, 1, 1);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenDiagonalUpLeft() {
     Move move = new Move(1, 1, -1, -1);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenDiagonalDownLeft() {
     Move move = new Move(1, 1, -1, 1);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenDiagonalUpRight() {
     Move move = new Move(1, 1, 1, -1);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
 }

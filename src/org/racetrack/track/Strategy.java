@@ -77,8 +77,17 @@ public class Strategy {
 
   private Comparator<Evaluation> comp(int player) {
     return (o1, o2) -> {
-      float diff = o1.ratings[player] - o2.ratings[player];
-      return diff == 0f ? 0 : (diff < 0 ? -1 : 1);
+      float maxOp1 = Float.NEGATIVE_INFINITY, maxOp2 = Float.NEGATIVE_INFINITY;
+      for (int i = 0; i < players.size(); i++) {
+        if (player != i) {
+          maxOp1 = Math.max(maxOp1, o1.ratings[i]);
+          maxOp2 = Math.max(maxOp2, o2.ratings[i]);
+        }
+      }
+
+      float diff1 = o1.ratings[player] - maxOp1;
+      float diff2 = o2.ratings[player] - maxOp2;
+      return diff1 == diff2 ? 0 : (diff1 > diff2 ? 1 : -1);
     };
   }
 

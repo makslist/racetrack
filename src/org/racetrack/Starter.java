@@ -10,7 +10,6 @@ import org.racetrack.analyzer.*;
 import org.racetrack.config.*;
 import org.racetrack.gui.*;
 import org.racetrack.karoapi.*;
-import org.racetrack.karoapi.Game.*;
 import org.racetrack.worker.*;
 
 public class Starter {
@@ -47,7 +46,6 @@ public class Starter {
     boolean startMapalyzor = false;
     MutableList<String> analyzeMaps = Lists.mutable.empty();
     int mapScale = 12;
-    Dir direction = Dir.classic;
 
     for (String arg2 : args) {
       switch (arg2.charAt(0)) {
@@ -75,6 +73,11 @@ public class Starter {
                 Integer.valueOf(mapId);
                 analyzeMaps.add(mapId);
               } catch (NumberFormatException nfe) {
+                if ("all".equals(mapId)) {
+                  analyzeMaps
+                      .addAll(KaroMap.getAll().select(m -> m.isActive()).collect(m -> String.valueOf(m.getId())));
+                  break;
+                }
                 File file = new File("./" + mapId);
                 if (file.exists()) {
                   analyzeMaps.add(mapId);
@@ -125,7 +128,7 @@ public class Starter {
         System.out.println("Please provide parameters: e.g. -" + Param.MAPALYZE.toString() + ":1;Tetris.json" + " [-"
             + Param.MAPSCALE.toString() + ":(8-64)]");
       } else {
-        runMapalysor(analyzeMaps, mapScale, direction);
+        runMapalysor(analyzeMaps, mapScale);
       }
     } else {
       StringBuilder help = new StringBuilder("No start command set. Please provide parameters:" + "\n\n");
@@ -159,9 +162,13 @@ public class Starter {
     }
   }
 
-  private static void runMapalysor(MutableList<String> analyzeMaps, int mapScale, Dir direction) {
+  private static void runMapalysor(MutableList<String> analyzeMaps, int mapScale) {
     System.out.println("MapAlyzor 2.0");
 
+    System.out.print("{| class=\"wikitable\"\r\n"
+        + "! || || colspan=\"3\"|classic || colspan=\"3\"|classic (no-cps) || colspan=\"3\"|formula1 || colspan=\"3\"|free\r\n"
+        + "|-\r\n"
+        + "! Map || Title || Len || Starts || Bottleneck || Len || Starts || Bottleneck || Len || Starts || Bottleneck || Len || Starts || Bottleneck\r\n");
     for (String map : analyzeMaps) {
       try {
         int mapId = Integer.valueOf(map);
@@ -177,6 +184,7 @@ public class Starter {
         }
       }
     }
+    System.out.println("|-\r\n" + "|}");
   }
 
   private Starter() {

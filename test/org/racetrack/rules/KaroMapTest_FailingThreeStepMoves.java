@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import org.junit.*;
 import org.racetrack.karoapi.*;
-import org.racetrack.rules.MapRule;
 
 public class KaroMapTest_FailingThreeStepMoves {
 
@@ -24,28 +23,28 @@ public class KaroMapTest_FailingThreeStepMoves {
   public void whenDownRight() {
     Move move = new Move(1, 3, 1, 3);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenDownRight2() {
     Move move = new Move(2, 3, 2, 3);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenDownRight3() {
     Move move = new Move(3, 3, 2, 3);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
   @Test
   public void whenDownRight4() {
     Move move = new Move(3, 3, 3, 2);
 
-    assertFalse(!rule.isValid(move));
+    assertFalse(rule.isValid(move));
   }
 
 }
