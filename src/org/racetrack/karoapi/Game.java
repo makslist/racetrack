@@ -8,6 +8,7 @@ import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.json.*;
+import org.racetrack.rules.*;
 import org.racetrack.rules.RuleFactory.*;
 
 public class Game {
@@ -125,6 +126,65 @@ public class Game {
     return game;
   }
 
+  public static Game get(int id, String playerLogin, int round) {
+    Game game = Game.get(id);
+    Player player = null;
+    for (Player p : game.players.values()) {
+      if (p.getName().equals(playerLogin)) {
+        player = p;
+      }
+    }
+    game.finished = false;
+    game.next = player;
+
+    GameRule rule = RuleFactory.getInstance(game);
+
+    LogMove refMove = player.getMove(round);
+    player.motion = player.getMove(round - 1);
+    player.moveCount = player.motion.getTotalLen() + 1;
+    player.possibles = player.motion.getNext();
+    player.rank = 0;
+    if (game.cps) {
+      for (MapTile cp : game.map.getCps())
+        if (rule.hasXdCp(player.motion, cp)) {
+          player.checkedCps.add(cp);
+          player.missingCps.remove(cp);
+        } else {
+          player.checkedCps.remove(cp);
+          player.missingCps.add(cp);
+        }
+    }
+
+    for (Player p : game.players.values()) {
+      if (p != player) {
+        LogMove move = p.getMove(round);
+        if (move != null) {
+          if (move.isBefore(refMove)) {
+            p.motion = move;
+            p.moveCount = move.getTotalLen() + 1;
+          } else {
+            p.motion = p.getMove(round - 1);
+            p.moveCount = p.motion.getTotalLen() + 1;
+          }
+          p.rank = 0;
+
+          if (game.cps) {
+            for (MapTile cp : game.map.getCps())
+              if (rule.hasXdCp(player.motion, cp)) {
+                player.checkedCps.add(cp);
+                player.missingCps.remove(cp);
+              } else {
+                player.checkedCps.remove(cp);
+                player.missingCps.add(cp);
+              }
+          }
+        }
+      }
+    }
+
+    return game;
+  }
+
   protected int id;
   protected String name;
   protected KaroMap map;
@@ -184,7 +244,7 @@ public class Game {
         next = players.get(nextjson.getInt("id"));
       }
 
-      blocked = json.getInt(Field.blocked.toString());
+      blocked = json.optInt(Field.blocked.toString());
 
       JSONObject jMap = json.getJSONObject(Field.map.toString());
       map = KaroMap.get(jMap.getInt(KaroMap.ID));

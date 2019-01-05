@@ -95,6 +95,14 @@ public class MapRule {
     return !isOnRoad(move) && isDrivenAcross(move.getX(), move.getY(), move.getXv(), move.getYv(), cp.asList(), true);
   }
 
+  public boolean hasXdCp(LogMove move, MapTile cp) {
+    if (move == null)
+      return false;
+    if (!isOnRoad(move) && isDrivenAcross(move.getX(), move.getY(), move.getXv(), move.getYv(), cp.asList(), true))
+      return true;
+    return hasXdCp((LogMove) move.getPred(), cp);
+  }
+
   public boolean hasXdCp(Paths paths, MapTile tile) {
     MutableCollection<Move> allTracks = paths.getEndMoves();
     while (!allTracks.isEmpty()) {

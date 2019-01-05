@@ -5,6 +5,7 @@ import java.util.logging.*;
 
 import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.list.*;
+import org.eclipse.collections.api.set.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.json.*;
@@ -43,7 +44,7 @@ public class Player {
     player.game = game;
     player.id = id;
     player.name = "Test Dummy";
-    player.missingCps = missingCps;
+    player.missingCps.addAll(missingCps);
     player.possibles = new FastList<>(possibles);
     player.status = Status.OK;
     player.moves = new FastList<>(0);
@@ -58,14 +59,13 @@ public class Player {
   private String color;
   @SuppressWarnings("unused")
   private boolean moved;
-  private int rank;
+  protected int rank;
   protected Status status;
   protected int moveCount;
   protected int crashCount;
-  @SuppressWarnings("unused")
-  private MutableCollection<MapTile> checkedCps = new FastList<>(0);
-  protected MutableCollection<MapTile> missingCps = new FastList<>(0);
-  private LogMove motion;
+  protected MutableSet<MapTile> checkedCps = Sets.mutable.empty();
+  protected MutableSet<MapTile> missingCps = Sets.mutable.empty();
+  protected LogMove motion;
   protected MutableCollection<Move> possibles = new FastList<>(0);
   protected MutableList<LogMove> moves;
   protected Game game;
@@ -103,15 +103,15 @@ public class Player {
     }
   }
 
-  private MutableCollection<MapTile> getCps(JSONArray array) {
+  private MutableSet<MapTile> getCps(JSONArray array) {
     if (array != null) {
-      MutableCollection<MapTile> cps = new FastList<>(array.length());
+      MutableSet<MapTile> cps = Sets.mutable.empty();
       for (int i = 0; i < array.length(); i++) {
         cps.add(MapTile.valueOf(array.getInt(i)));
       }
       return cps;
     }
-    return new FastList<>(0);
+    return Sets.mutable.empty();
   }
 
   public int getId() {
@@ -163,6 +163,10 @@ public class Player {
 
   public LogMove getMove(int round) {
     return moves.detect(m -> m.totalLen == round - 1 && !m.isCrash());
+  }
+
+  public boolean hasMovedInRound(int round) {
+    return motion.totalLen == round - 1 && !motion.isCrash();
   }
 
   private User getUser() {

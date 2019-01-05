@@ -15,8 +15,6 @@ public class KaroMapSetting {
   private static final String CIRCUIT = "circuit";
   private static final String MAX_TOURS = "maxTours";
   private static final String QUIT = "quit";
-  private static final String PATH_MOVE_WEIGHT_POW = "pathWeightPow";
-  private static final String PATH_SUCC_WEIGHT_MOD = "pathSuccCountMod";
 
   public static KaroMapSetting readSettings(int id) {
     String settingString = null;
@@ -66,8 +64,6 @@ public class KaroMapSetting {
   private Boolean circuit;
   private int maxTours = -1;
   private Boolean quit; // marks map as innavigable and leads to quitting a game on this map
-  private double pathWeightPow = Double.NaN;
-  private int pathSuccCountMod = -1;
   private boolean set;
 
   public KaroMapSetting(int id, File file) {
@@ -84,8 +80,6 @@ public class KaroMapSetting {
     maxTours = json.optInt(MAX_TOURS);
     String quitString = json.optString(QUIT);
     quit = quitString.equals("") ? null : Boolean.valueOf(quitString);
-    pathWeightPow = json.optDouble(PATH_MOVE_WEIGHT_POW);
-    pathSuccCountMod = json.optInt(PATH_SUCC_WEIGHT_MOD, -1);
     set = true;
   }
 
@@ -115,14 +109,6 @@ public class KaroMapSetting {
 
   public void setQuit(boolean quit) {
     this.quit = quit;
-  }
-
-  public double getPathWeightPow() {
-    return pathWeightPow;
-  }
-
-  public int getPathSuccCountMod() {
-    return pathSuccCountMod;
   }
 
   public boolean isSet() {

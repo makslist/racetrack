@@ -2,6 +2,7 @@ package org.racetrack.track;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 import java.util.logging.*;
 
 import org.eclipse.collections.api.list.*;
@@ -120,6 +121,7 @@ public class GTS implements Callable<GameAction> {
 
   private MutableMap<Player, Paths> paths = Maps.mutable.empty();
   private ConcurrentMutableMap<Integer, Evaluation> evaluations = new ConcurrentHashMap<>();
+  private AtomicInteger playoutCount = new AtomicInteger();
   private Random random = new Random();
 
   private int minThreads = Integer.min(Settings.getInstance().getInt(Property.maxParallelTourThreads),
@@ -204,8 +206,8 @@ public class GTS implements Callable<GameAction> {
     int playoutDepth = gameLength - maxDepth;
     sampleSize = playoutDepth >= 50 || playoutDepth <= 5 ? 1 : 4;
 
-    MutableList<Player> playersAlreadyMoved = actualPlayers.select(p -> p.getMove(round) != null);
-    MutableList<Player> playersNotYetMoved = actualPlayers.reject(p -> p.getMove(round) != null);
+    MutableList<Player> playersAlreadyMoved = actualPlayers.select(p -> p.hasMovedInRound(round));
+    MutableList<Player> playersNotYetMoved = actualPlayers.reject(p -> p.hasMovedInRound(round));
     GameState currentState = new GameState(playersAlreadyMoved.collect(p -> new Pair<Player, Move>(p, p.getMotion())));
 
     Move bestMove = play(player, playersNotYetMoved, currentState, round);
@@ -213,12 +215,13 @@ public class GTS implements Callable<GameAction> {
 
     System.out.println(game.getId() + " Result: " + bestMove + " with strategy : " + strategy);
     duration = (System.currentTimeMillis() - duration) / 1000;
-    System.out.println(game.getId() + " " + duration + "s to calculate with " + evaluations.size() + " nodes.");
+    System.out.println(game.getId() + " " + duration + "s to calculate with " + evaluations.size() + " nodes and "
+        + playoutCount.get() + " playout calls.");
 
     return new GameAction(game, bestMove, playerPaths.getComment());
   }
 
-  public int calcMaxNDepth(MutableList<Player> actualPlayers, int maxNodes, int maxRound) {
+  private int calcMaxNDepth(MutableList<Player> actualPlayers, int maxNodes, int maxRound) {
     for (int i = game.getCurrentRound() - 1; i < maxRound; i++) {
       long nodeCount = 1;
       for (Player player : actualPlayers) {
@@ -228,7 +231,7 @@ public class GTS implements Callable<GameAction> {
       if (nodeCount > maxNodes)
         return i - 1;
     }
-    return maxRound;
+    return maxRound + 10;
   }
 
   private Move play(Player player, MutableList<Player> playersToMove, GameState state, int round) {
@@ -277,7 +280,7 @@ public class GTS implements Callable<GameAction> {
                     return playNextRound(state.clone().with(pl, move), round);
                   }
                 }));
-            playerEvals.add(strategy.evaluate(player, new FastList<>(results).collect(t -> {
+            playerEvals.add(strategy.evaluate(pl, new FastList<>(results).collect(t -> {
               try {
                 return t.get();
               } catch (InterruptedException | ExecutionException e) {
@@ -304,8 +307,11 @@ public class GTS implements Callable<GameAction> {
     if (evaluations.containsKey(state.hashCode()))
       return evaluations.get(state.hashCode());
 
+    if (state.getPlayers().isEmpty())
+      return strategy.initEval();
+
     Evaluation eval;
-    if (round < maxDepth) {
+    if (round <= maxDepth) {
       eval = play(state.getPlayers(), new GameState(), round + 1, state);
     } else {
       List<RecursiveTask<Evaluation>> futures = Lists.mutable.empty();
@@ -333,6 +339,7 @@ public class GTS implements Callable<GameAction> {
   }
 
   private Evaluation playOut(MutableList<Player> playersToMove, GameState state, int round, GameState lastRound) {
+    playoutCount.incrementAndGet();
     if (playersToMove.isEmpty())
       return lastRound.isEmpty() ? strategy.initEval() : playOut(state.getPlayers(), new GameState(), round + 1, state);
 
