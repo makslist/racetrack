@@ -53,6 +53,7 @@ public class Strategy {
     if (playerLength.size() >= 2) {
       playerLength.sortThis((o1, o2) -> o1.value - o2.value);
       strat.leader = playerLength.get(0).key;
+      strat.gamelength = playerLength.get(0).value;
       leadingEdge = Math.abs(playerLength.get(0).value - playerLength.get(1).value);
     }
 
@@ -71,6 +72,7 @@ public class Strategy {
   private MutableObjectIntMap<Player> players = ObjectIntMaps.mutable.empty();
   private Player player;
   private Player leader;
+  private int gamelength;
 
   private Strategy() {
   }
@@ -117,8 +119,16 @@ public class Strategy {
     return new Evaluation(players.size());
   }
 
-  public Evaluation setValue(Evaluation eval, Player player, float value) {
-    eval.ratings[players.get(player)] = value;
+  public Evaluation finish(Evaluation eval, Player player, int round) {
+    int roundsAfterLeader = round - gamelength;
+    eval.ratings[players.get(player)] = roundsAfterLeader == 0 ? 0 : -(roundsAfterLeader + 1);
+    return eval;
+  }
+
+  public Evaluation block(Evaluation eval, Player player, int round) {
+    int blockInRoundsTillFinish = gamelength - round;
+    eval.ratings[players.get(player)] = blockInRoundsTillFinish <= 0 ? blockInRoundsTillFinish
+        : (float) -Math.max(Math.sqrt(blockInRoundsTillFinish), 3);
     return eval;
   }
 

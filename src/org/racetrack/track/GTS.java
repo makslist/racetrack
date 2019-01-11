@@ -132,8 +132,6 @@ public class GTS implements Callable<GameAction> {
   private int gameLength = Integer.MIN_VALUE;
   private int maxDepth = Integer.MAX_VALUE;
 
-  private int sampleSize;
-
   public GTS(Game game) {
     this.game = game;
     player = game.getNext();
@@ -152,7 +150,7 @@ public class GTS implements Callable<GameAction> {
     long duration = System.currentTimeMillis();
     int round = game.getCurrentRound();
 
-    MutableList<Player> actualPlayers = game.isStarted() ? game.getNearestPlayers(player, 5, 5)
+    MutableList<Player> actualPlayers = game.isStarted() ? game.getNearestPlayers(player, 4, 4)
         : (game.getMap().isCpClustered(MapTile.START) && game.getActivePlayersCount() <= 5 ? game.getActivePlayers()
             : Lists.mutable.with(player));
     System.out.println(game.getId() + " " + game.getName() + " " + actualPlayers);
@@ -203,8 +201,6 @@ public class GTS implements Callable<GameAction> {
     strategy = Strategy.get(player, playerLength);
 
     maxDepth = calcMaxNDepth(actualPlayers, 2000000, gameLength);
-    int playoutDepth = gameLength - maxDepth;
-    sampleSize = playoutDepth >= 50 || playoutDepth <= 5 ? 1 : 4;
 
     MutableList<Player> playersAlreadyMoved = actualPlayers.select(p -> p.hasMovedInRound(round));
     MutableList<Player> playersNotYetMoved = actualPlayers.reject(p -> p.hasMovedInRound(round));
@@ -231,7 +227,7 @@ public class GTS implements Callable<GameAction> {
       if (nodeCount > maxNodes)
         return i - 1;
     }
-    return maxRound + 10;
+    return maxRound + 1;
   }
 
   private Move play(Player player, MutableList<Player> playersToMove, GameState state, int round) {
@@ -247,7 +243,10 @@ public class GTS implements Callable<GameAction> {
     }
     System.out.println("");
 
-    return moveRatings.get(strategy.evaluate(player, new FastList<>(moveRatings.keySet())));
+    FastList<Evaluation> evals = new FastList<>(moveRatings.keySet());
+    evals.sortThis((e1, e2) -> path.getSuccessors(round + 1, moveRatings.get(e2)).size()
+        - path.getSuccessors(round + 1, moveRatings.get(e1)).size());
+    return moveRatings.get(strategy.evaluate(player, evals));
   }
 
   private Evaluation play(MutableList<Player> playersToMove, GameState state, int round, GameState lastRound) {
@@ -262,13 +261,13 @@ public class GTS implements Callable<GameAction> {
 
       MutableList<Evaluation> playerEvals = Lists.mutable.empty();
       if (moves.isEmpty()) { // GAME END
-        Evaluation value = play(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
-        playerEvals.add(strategy.setValue(value, pl, gameLength - (round - 1)));
+        Evaluation eval = play(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
+        playerEvals.add(strategy.finish(eval, pl, round));
       } else {
         MutableList<Move> movesNonBlocked = moves.reject(m -> state.isTaken(m));
         if (movesNonBlocked.isEmpty()) { // BLOCK
-          Evaluation value = play(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
-          playerEvals.add(strategy.setValue(value, pl, round - gameLength));
+          Evaluation eval = play(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
+          playerEvals.add(strategy.block(eval, pl, round));
         } else {
 
           if (playersToMove.size() == 1) {
@@ -302,7 +301,6 @@ public class GTS implements Callable<GameAction> {
     return strategy.merge(evals);
   }
 
-  @SuppressWarnings("serial")
   public Evaluation playNextRound(GameState state, int round) {
     if (evaluations.containsKey(state.hashCode()))
       return evaluations.get(state.hashCode());
@@ -314,51 +312,33 @@ public class GTS implements Callable<GameAction> {
     if (round <= maxDepth) {
       eval = play(state.getPlayers(), new GameState(), round + 1, state);
     } else {
-      List<RecursiveTask<Evaluation>> futures = Lists.mutable.empty();
-      for (int i = 0; i < sampleSize; i++) {
-        futures.add(new RecursiveTask<Strategy.Evaluation>() {
-          @Override
-          protected Evaluation compute() {
-            return playOut(state.getPlayers(), new GameState(), round + 1, state);
-          }
-        });
-      }
-
-      MutableList<RecursiveTask<Evaluation>> results = new FastList<>(ForkJoinTask.invokeAll(futures));
-      eval = strategy.merge(results.collect(t -> {
-        try {
-          return t.get();
-        } catch (InterruptedException | ExecutionException e) {
-          logger.warning(e.getMessage());
-        }
-        return null;
-      }));
+      playoutCount.incrementAndGet();
+      eval = playOut(state.getPlayers(), new GameState(), round + 1, state);
     }
     evaluations.put(state.hashCode(), eval);
     return eval;
   }
 
   private Evaluation playOut(MutableList<Player> playersToMove, GameState state, int round, GameState lastRound) {
-    playoutCount.incrementAndGet();
     if (playersToMove.isEmpty())
       return lastRound.isEmpty() ? strategy.initEval() : playOut(state.getPlayers(), new GameState(), round + 1, state);
 
-    Player player = playersToMove.get(random.nextInt(playersToMove.size()));
-    Paths path = paths.get(player);
-    MutableList<Move> moves = lastRound != null ? path.getSuccessors(round, lastRound.getMove(player))
+    Player pl = playersToMove.get(random.nextInt(playersToMove.size()));
+    Paths path = paths.get(pl);
+    MutableList<Move> moves = lastRound != null ? path.getSuccessors(round, lastRound.getMove(pl))
         : path.getMovesOfRound(round);
 
     if (moves.isEmpty()) { // GAME END
-      Evaluation eval = playOut(playersToMove.reject(p -> p.equals(player)), state, round, lastRound);
-      return strategy.setValue(eval, player, gameLength - (round - 1));
+      Evaluation eval = playOut(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
+      return strategy.finish(eval, pl, round);
     } else {
       MutableList<Move> movesNonBlocked = moves.reject(m -> state.isTaken(m));
       if (movesNonBlocked.isEmpty()) { // BLOCK
-        Evaluation eval = playOut(playersToMove.reject(p -> p.equals(player)), state, round, lastRound);
-        return strategy.setValue(eval, player, round - gameLength);
+        Evaluation eval = playOut(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
+        return strategy.block(eval, pl, round);
       } else {
         Move move = movesNonBlocked.get(random.nextInt(movesNonBlocked.size()));
-        return playOut(playersToMove.reject(p -> p.equals(player)), state.with(player, move), round, lastRound);
+        return playOut(playersToMove.reject(p -> p.equals(pl)), state.with(pl, move), round, lastRound);
       }
     }
   }

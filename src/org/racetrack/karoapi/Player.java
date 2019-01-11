@@ -150,11 +150,7 @@ public class Player {
     MutableCollection<Move> moves = motion != null ? motion.getNext() : game.getMap().getTilesAsMoves(MapTile.START);
     MutableList<Move> blocked = game.getActivePlayers().select(p -> p.moveCount == moveCount + 1)
         .collect(p -> p.getMotion());
-    MutableCollection<Move> possibleMoves = moves.reject(m -> m.equalsPos(blocked));
-    if (possibles.size() > possibleMoves.size()) {
-      logger.severe("Possibles when calculating possibles: " + possibles + " / " + possibleMoves);
-    }
-    return possibleMoves;
+    return moves.reject(m -> m.equalsPos(blocked));
   }
 
   public MutableList<LogMove> getMoves() {
@@ -166,7 +162,7 @@ public class Player {
   }
 
   public boolean hasMovedInRound(int round) {
-    return motion.totalLen == round - 1 && !motion.isCrash();
+    return motion != null && motion.totalLen == round - 1 && !motion.isCrash();
   }
 
   private User getUser() {

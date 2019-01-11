@@ -141,8 +141,8 @@ public class Game {
 
     LogMove refMove = player.getMove(round);
     player.motion = player.getMove(round - 1);
-    player.moveCount = player.motion.getTotalLen() + 1;
-    player.possibles = player.motion.getNext();
+    player.moveCount = player.motion != null ? player.motion.getTotalLen() + 1 : 0;
+    player.possibles = player.motion != null ? player.motion.getNext() : game.getMap().getTilesAsMoves(MapTile.START);
     player.rank = 0;
     if (game.cps) {
       for (MapTile cp : game.map.getCps())
@@ -159,13 +159,8 @@ public class Game {
       if (p != player) {
         LogMove move = p.getMove(round);
         if (move != null) {
-          if (move.isBefore(refMove)) {
-            p.motion = move;
-            p.moveCount = move.getTotalLen() + 1;
-          } else {
-            p.motion = p.getMove(round - 1);
-            p.moveCount = p.motion.getTotalLen() + 1;
-          }
+          p.motion = move.isBefore(refMove) ? move : p.getMove(round - 1);
+          p.moveCount = p.motion != null ? p.motion.getTotalLen() + 1 : 0;
           p.rank = 0;
 
           if (game.cps) {
@@ -178,6 +173,10 @@ public class Game {
                 player.missingCps.add(cp);
               }
           }
+        } else {
+          p.motion = null;
+          p.moveCount = 0;
+          p.rank = 0;
         }
       }
     }
@@ -205,7 +204,7 @@ public class Game {
   }
 
   private Game(String name, int mapId, Dir direction) {
-    this.name = name;
+    this.name = name.length() <= 255 ? name : name.substring(0, 255);
     map = KaroMap.get(mapId);
     startdirection = direction.toString();
     players = Maps.mutable.empty();
@@ -317,7 +316,7 @@ public class Game {
     return getActivePlayers().select(p -> p.getMove(getCurrentRound()) == null);
   }
 
-  public MutableList<Player> getNearestPlayers(Player player, int count, int maxDist) {
+  public MutableList<Player> getNearestPlayers(Player player, int maxDist, int count) {
     MutableCollection<Move> possibles = player.getPossibles();
     int currentRound = getCurrentRound();
     MutableList<Player> nearest = getActivePlayers().select(p -> p.equals(player)

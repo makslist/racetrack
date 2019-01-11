@@ -27,6 +27,7 @@ public class BotRunner implements Runnable {
   private KaroClient karo;
   private User user;
   private boolean withChat;
+  private boolean withNewGames;
   private ChatModule chatbot;
 
   private BlockingQueue<Game> games = new LinkedBlockingQueue<>();
@@ -41,6 +42,8 @@ public class BotRunner implements Runnable {
     secureConnection = secureString != null ? Boolean.valueOf(secureString) : true;
     String chatString = settings.get(Property.withChat);
     withChat = chatString != null ? Boolean.valueOf(chatString) : false;
+    String newGamesString = settings.get(Property.withNewGames);
+    withNewGames = newGamesString != null ? Boolean.valueOf(newGamesString) : false;
 
     if (userLogin == null || password == null) {
       System.out.println("No username or password given");
@@ -94,9 +97,16 @@ public class BotRunner implements Runnable {
 
     // creates one game every day
     scheduler.scheduleAtFixedRate(() -> {
-      Game game = Game.newRandom(null, userLogin, new Random().nextBoolean());
-      karo.addGame(game);
-    }, computeDelayMinutes(9, 0, 0), 24 * 60, TimeUnit.MINUTES);
+      if (withNewGames) {
+        Game game = Game.newRandom(null, userLogin, new Random().nextBoolean());
+        karo.addGame(game);
+
+        Karolenderblatt blatt = Karolenderblatt.getToday();
+        String title = "Karolenderblatt: " + blatt.getLine();
+        Game karolenderGame = Game.newRandom(title, userLogin, true);
+        karo.addGame(karolenderGame);
+      }
+    }, computeDelayMinutes(7, 0, 0), 24 * 60, TimeUnit.MINUTES);
 
     new Thread(websocketClient()).start();
     new Thread(chat()).start();

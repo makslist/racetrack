@@ -60,7 +60,7 @@ public class Paths {
   private MutableCollection<Move> moves = new FastList<>(0);
   private String comment = "";
 
-  private MutableIntObjectMap<MutableList<Move>> roundMoves = new IntObjectHashMap<>();
+  private MutableIntObjectMap<MutableList<Move>> roundMoves = new IntObjectHashMap<>(192);
 
   public Paths() {
   }
@@ -217,7 +217,10 @@ public class Paths {
   public MutableList<Move> getSuccessors(int level, Move predecessor) {
     if (predecessor == null)
       return new FastList<>(0);
-    return getMovesOfRound(level).select(m -> m.getPreds().contains(predecessor));
+    MutableList<Move> movesOfRound = getMovesOfRound(level);
+    if (movesOfRound == null || movesOfRound.isEmpty())
+      return new FastList<>(0);
+    return movesOfRound.select(m -> m.getPreds() != null && m.getPreds().contains(predecessor));
   }
 
   public MutableCollection<Move> getPartialMoves() {
