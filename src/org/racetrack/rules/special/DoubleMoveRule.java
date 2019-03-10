@@ -11,7 +11,7 @@ public class DoubleMoveRule extends GameRule {
   public static final String TITLE = "$ Doppelzug $";
 
   private Predicate<Move> gameRule = move -> move.getTotalLen() % 2 != 0
-      || (move.getPred().getXv() == move.getXv() && move.getPred().getYv() == move.getYv());
+      || (move.getPred() != null && move.getPred().getXv() == move.getXv() && move.getPred().getYv() == move.getYv());
 
   public DoubleMoveRule(Game game) {
     super(game);

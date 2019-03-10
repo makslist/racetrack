@@ -32,7 +32,7 @@ public class REmulAdeRule extends GameRule {
 
   @Override
   public Paths filterPossibles(Paths possibles) {
-    MutableCollection<Move> nextMoves = possibles.getEndMoves();
+    MutableCollection<Move> nextMoves = super.filterPossibles(possibles).getEndMoves();
 
     if (possibles.isInCurrentRound()
         && game.getPosOfNextPlayer() <= Math.floorDiv(game.getActivePlayersCount(), 7) + 1) {

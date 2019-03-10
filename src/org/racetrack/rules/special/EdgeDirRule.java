@@ -10,8 +10,8 @@ public class EdgeDirRule extends GameRule {
 
   public static final String TITLE = "$ Richtungswechsel nur am Rand $";
 
-  private Predicate<Move> gameRule = move -> map.isMoveNeighborOf(move.getPred(), MapTile.OFF_TRACK)
-      || move.getPred().getAngle() == move.getAngle();
+  private Predicate<Move> gameRule = move -> move.getPred() == null
+      || (map.isMoveNeighborOf(move.getPred(), MapTile.OFF_TRACK) || move.getPred().getAngle() == move.getAngle());
 
   public EdgeDirRule(Game game) {
     super(game);

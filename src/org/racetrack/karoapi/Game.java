@@ -204,7 +204,7 @@ public class Game {
   }
 
   private Game(String name, int mapId, Dir direction) {
-    this.name = name.length() <= 255 ? name : name.substring(0, 255);
+    this.name = name.length() <= 255 ? name : (name.substring(0, 251) + "...");
     map = KaroMap.get(mapId);
     startdirection = direction.toString();
     players = Maps.mutable.empty();

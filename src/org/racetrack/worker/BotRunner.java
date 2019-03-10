@@ -17,7 +17,7 @@ public class BotRunner implements Runnable {
   private static final Logger logger = Logger.getLogger(BotRunner.class.getName());
 
   private ExecutorService threadPool = Executors.newSingleThreadExecutor();
-  private CompletionService<GameAction> gameTreeSearch = new ExecutorCompletionService<>(threadPool);
+  private CompletionService<GameAction> moveFinder = new ExecutorCompletionService<>(threadPool);
   private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
   private String userLogin;
@@ -102,8 +102,8 @@ public class BotRunner implements Runnable {
         karo.addGame(game);
 
         Karolenderblatt blatt = Karolenderblatt.getToday();
-        String title = "Karolenderblatt: " + blatt.getLine();
-        Game karolenderGame = Game.newRandom(title, userLogin, true);
+        String title = "!KaroIQ!lenderblatt: " + blatt.getLine();
+        Game karolenderGame = Game.newRandom(title, userLogin, false);
         karo.addGame(karolenderGame);
       }
     }, computeDelayMinutes(7, 0, 0), 24 * 60, TimeUnit.MINUTES);
@@ -174,10 +174,11 @@ public class BotRunner implements Runnable {
             Player player = game.getPlayer(user);
             if (game.isNextPlayer(player)) {
               if (gamesInProcess.add(game.getId())) {
-                gameTreeSearch.submit(new GTS(game));
+                moveFinder.submit(new MoveChooser(game));
               }
             }
           } catch (NullPointerException | OutOfMemoryError npe) {
+            logger.severe("MoveFinder Exception: " + npe.getMessage());
           }
         } catch (InterruptedException e) {
         }
@@ -189,7 +190,7 @@ public class BotRunner implements Runnable {
     return () -> {
       while (true) {
         try {
-          GameAction action = gameTreeSearch.take().get();
+          GameAction action = moveFinder.take().get();
 
           Game game = action.getGame();
           gamesInProcess.remove(game.getId());

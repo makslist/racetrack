@@ -17,7 +17,7 @@ public class PrimeAccRule extends GameRule {
       167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229);
 
   private Predicate<Move> gameRule = move -> ONE_AND_PRIMES.contains(Integer.valueOf(move.getTotalLen()))
-      || move.getSpeed() <= move.getPred().getSpeed();
+      || (move.getPred() != null && move.getSpeed() <= move.getPred().getSpeed());
 
   public PrimeAccRule(Game game) {
     super(game);

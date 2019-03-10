@@ -66,7 +66,7 @@ public class Player {
   protected MutableSet<MapTile> checkedCps = Sets.mutable.empty();
   protected MutableSet<MapTile> missingCps = Sets.mutable.empty();
   protected LogMove motion;
-  protected MutableCollection<Move> possibles = new FastList<>(0);
+  protected MutableList<Move> possibles = new FastList<>(0);
   protected MutableList<LogMove> moves;
   protected Game game;
   private User user;
@@ -142,12 +142,12 @@ public class Player {
     return motion;
   }
 
-  public MutableCollection<Move> getPossibles() {
+  public MutableList<Move> getPossibles() {
     return possibles;
   }
 
-  public MutableCollection<Move> getNextMoves() {
-    MutableCollection<Move> moves = motion != null ? motion.getNext() : game.getMap().getTilesAsMoves(MapTile.START);
+  public MutableList<Move> getNextMoves() {
+    MutableList<Move> moves = motion != null ? motion.getNext() : game.getMap().getTilesAsMoves(MapTile.START);
     MutableList<Move> blocked = game.getActivePlayers().select(p -> p.moveCount == moveCount + 1)
         .collect(p -> p.getMotion());
     return moves.reject(m -> m.equalsPos(blocked));

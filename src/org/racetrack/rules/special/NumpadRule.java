@@ -10,8 +10,8 @@ public class NumpadRule extends GameRule {
 
   public static final String TITLE = "$ Ziffernblock $";
 
-  private Predicate<Move> gameRule = move -> move.getPred().getXv() != move.getXv()
-      && move.getPred().getYv() != move.getYv();
+  private Predicate<Move> gameRule = move -> move.getPred() == null
+      || (move.getPred().getXv() != move.getXv() && move.getPred().getYv() != move.getYv());
 
   public NumpadRule(Game game) {
     super(game);

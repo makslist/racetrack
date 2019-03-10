@@ -2,7 +2,6 @@ package org.racetrack.track;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
 import java.util.logging.*;
 
 import org.eclipse.collections.api.list.*;
@@ -10,9 +9,7 @@ import org.eclipse.collections.api.map.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.eclipse.collections.impl.map.mutable.ConcurrentHashMap;
-import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
-import org.racetrack.rules.*;
 import org.racetrack.track.Strategy.*;
 
 public class GTS implements Callable<GameAction> {
@@ -22,7 +19,7 @@ public class GTS implements Callable<GameAction> {
     K key;
     V value;
 
-    private Pair(K key, V value) {
+    public Pair(K key, V value) {
       this.key = key;
       this.value = value;
     }
@@ -117,114 +114,62 @@ public class GTS implements Callable<GameAction> {
   protected static final Logger logger = Logger.getLogger(GTS.class.toString());
 
   private Game game;
-  private Player player;
+  private MutableList<Pair<Player, Integer>> playerLength = new FastList<>(0);
+  private int round;
 
-  private MutableMap<Player, Paths> paths = Maps.mutable.empty();
+  private MutableMap<Player, Paths> paths;
   private ConcurrentMutableMap<Integer, Evaluation> evaluations = new ConcurrentHashMap<>();
-  private AtomicInteger playoutCount = new AtomicInteger();
   private Random random = new Random();
 
-  private int minThreads = Integer.min(Settings.getInstance().getInt(Property.maxParallelTourThreads),
-      Runtime.getRuntime().availableProcessors() - 1);
-  private int maxThreads = Integer.max(minThreads, 1);
-
   private Strategy strategy;
-  private int gameLength = Integer.MIN_VALUE;
+  private int maxGameLength = Integer.MIN_VALUE;
   private int maxDepth = Integer.MAX_VALUE;
 
-  public GTS(Game game) {
+  public GTS(Game game, MutableMap<Player, Paths> paths, int round) {
     this.game = game;
-    player = game.getNext();
+    this.paths = paths;
+    this.round = round;
   }
 
   @Override
   public GameAction call() {
-    if (game.getMap().getSetting().isQuit())
-      return GameAction.quitGame(game);
-
-    if (player.getPossibles().isEmpty()) {
-      System.out.println(game.getId() + " Crash.");
-      return new GameAction(game, null, null);
-    }
-
     long duration = System.currentTimeMillis();
-    int round = game.getCurrentRound();
+    Player player = game.getNext();
 
-    MutableList<Player> actualPlayers = game.isStarted() ? game.getNearestPlayers(player, 4, 4)
-        : (game.getMap().isCpClustered(MapTile.START) && game.getActivePlayersCount() <= 5 ? game.getActivePlayers()
-            : Lists.mutable.with(player));
-    System.out.println(game.getId() + " " + game.getName() + " " + actualPlayers);
-
-    GameRule rule = RuleFactory.getInstance(game);
-
-    MutableMap<Player, Future<Paths>> futurePaths = Maps.mutable.empty();
-    ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
-    CompletionService<Paths> pathService = new ExecutorCompletionService<>(threadPool);
-    TSP tsp = new TSP(game, rule);
-    for (Player pl : actualPlayers) {
-      futurePaths.put(pl, pathService.submit(new PathFinder(game, pl, rule, tsp)));
+    FastList<Player> players = new FastList<>(paths.keySet());
+    for (Player pl : players) {
+      Paths path = paths.get(pl);
+      int len = !path.isEmpty() ? path.getMinTotalLength() : Integer.MIN_VALUE;
+      maxGameLength = Math.max(maxGameLength, len);
+      playerLength.add(new Pair<Player, Integer>(pl, len));
     }
-    MutableList<Pair<Player, Integer>> playerLength = Lists.mutable.empty();
-    try {
-      for (Player pl : actualPlayers) {
-        Paths path = futurePaths.get(pl).get();
-        int len = !path.isEmpty() ? path.getMinTotalLength() : Integer.MIN_VALUE;
-        paths.put(pl, path);
-        playerLength.add(new Pair<Player, Integer>(pl, len));
-        if (len > gameLength) {
-          gameLength = len;
-        }
-      }
-    } catch (InterruptedException | ExecutionException e) {
-      logger.warning(e.getMessage());
-    }
-    threadPool.shutdownNow();
-
-    // remove reference to rule class to enabled freeing memory
-    rule = null;
-
-    Paths playerPaths = paths.get(player);
-    MutableList<Move> playerMoves = playerPaths.getMovesOfRound(round);
-
-    if (playerMoves.size() == 1) {
-      System.out.println(game.getId() + " Result: " + playerMoves.getFirst() + " with only one move.");
-      return new GameAction(game, playerMoves.getFirst(), playerPaths.getComment());
-    }
-
-    if (actualPlayers.size() == 1) {
-      Move maxSucc = playerPaths.getMovesOfRound(round).max((o1, o2) -> playerPaths.getSuccessors(round + 1, o1).size()
-          - playerPaths.getSuccessors(round + 1, o2).size());
-      System.out.println(game.getId() + " Result: " + maxSucc + " with only one player.");
-      return new GameAction(game, maxSucc, playerPaths.getComment());
-    }
-
     strategy = Strategy.get(player, playerLength);
 
-    maxDepth = calcMaxNDepth(actualPlayers, 2000000, gameLength);
+    maxDepth = calcMaxNDepth(players, maxGameLength);
 
-    MutableList<Player> playersAlreadyMoved = actualPlayers.select(p -> p.hasMovedInRound(round));
-    MutableList<Player> playersNotYetMoved = actualPlayers.reject(p -> p.hasMovedInRound(round));
+    MutableList<Player> playersAlreadyMoved = players.select(p -> p.hasMovedInRound(round));
+    MutableList<Player> playersNotYetMoved = players.reject(p -> p.hasMovedInRound(round));
     GameState currentState = new GameState(playersAlreadyMoved.collect(p -> new Pair<Player, Move>(p, p.getMotion())));
 
     Move bestMove = play(player, playersNotYetMoved, currentState, round);
-    threadPool.shutdownNow();
 
     System.out.println(game.getId() + " Result: " + bestMove + " with strategy : " + strategy);
     duration = (System.currentTimeMillis() - duration) / 1000;
-    System.out.println(game.getId() + " " + duration + "s to calculate with " + evaluations.size() + " nodes and "
-        + playoutCount.get() + " playout calls.");
+    System.out.println(game.getId() + " " + duration + "s to calculate with " + evaluations.size() + " nodes.");
 
-    return new GameAction(game, bestMove, playerPaths.getComment());
+    return new GameAction(game, bestMove, paths.get(player).getComment());
   }
 
-  private int calcMaxNDepth(MutableList<Player> actualPlayers, int maxNodes, int maxRound) {
+  private int calcMaxNDepth(MutableList<Player> actualPlayers, int maxRound) {
     for (int i = game.getCurrentRound() - 1; i < maxRound; i++) {
       long nodeCount = 1;
       for (Player player : actualPlayers) {
         nodeCount *= Math.max(paths.get(player).getMovesOfRound(i).size(), 1);
       }
-      nodeCount = (long) (nodeCount * Math.pow(actualPlayers.size(), 2));
-      if (nodeCount > maxNodes)
+      for (int j = actualPlayers.size(); j >= 1; j--) {
+        nodeCount *= j;
+      }
+      if (nodeCount > 1000000) // max nodes in round
         return i - 1;
     }
     return maxRound + 1;
@@ -244,6 +189,8 @@ public class GTS implements Callable<GameAction> {
     System.out.println("");
 
     FastList<Evaluation> evals = new FastList<>(moveRatings.keySet());
+    if (evals.isEmpty())
+      return null;
     evals.sortThis((e1, e2) -> path.getSuccessors(round + 1, moveRatings.get(e2)).size()
         - path.getSuccessors(round + 1, moveRatings.get(e1)).size());
     return moveRatings.get(strategy.evaluate(player, evals));
@@ -312,7 +259,6 @@ public class GTS implements Callable<GameAction> {
     if (round <= maxDepth) {
       eval = play(state.getPlayers(), new GameState(), round + 1, state);
     } else {
-      playoutCount.incrementAndGet();
       eval = playOut(state.getPlayers(), new GameState(), round + 1, state);
     }
     evaluations.put(state.hashCode(), eval);

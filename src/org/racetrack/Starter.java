@@ -165,10 +165,10 @@ public class Starter {
   private static void runMapalysor(MutableList<String> analyzeMaps, int mapScale) {
     System.out.println("MapAlyzor 2.0");
 
-    System.out.print("{| class=\"wikitable\"\r\n"
-        + "! || || colspan=\"3\"|classic || colspan=\"3\"|classic (no-cps) || colspan=\"3\"|formula1 || colspan=\"3\"|free\r\n"
+    System.out.print("{| class=\"wikitable sortable\"\r\n"
+        + "! ||colspan=\"4\"| || colspan=\"3\"|classic || colspan=\"3\"|classic (no-cps) || colspan=\"3\"|formula1 || colspan=\"3\"|free\r\n"
         + "|-\r\n"
-        + "! Map || Title || Len || Starts || Bottleneck || Len || Starts || Bottleneck || Len || Starts || Bottleneck || Len || Starts || Bottleneck\r\n");
+        + "! Map || Title || Author || Players || Rating || Len || Starts || Bottleneck || Len || Starts || Bottleneck || Len || Starts || Bottleneck || Len || Starts || Bottleneck\r\n");
     for (String map : analyzeMaps) {
       try {
         int mapId = Integer.valueOf(map);

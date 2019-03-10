@@ -97,8 +97,8 @@ public class KaroMap {
   }
 
   public static KaroMap getRandomHighRated() {
-    MutableList<KaroMap> higherRatedMaps = getAll()
-        .select(map -> map.rating > 3.3 && map.getPlayers() >= 3 && map.isActive() && !map.isNight());
+    MutableList<KaroMap> higherRatedMaps = getAll().reject(m -> m.isQuit())
+        .select(m -> m.rating > 3.3 && m.getPlayers() >= 3 && m.isActive() && !m.isNight());
     return higherRatedMaps.get(new Random().nextInt(higherRatedMaps.size()));
   }
 

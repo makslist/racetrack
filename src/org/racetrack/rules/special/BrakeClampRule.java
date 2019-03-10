@@ -10,7 +10,7 @@ public class BrakeClampRule extends GameRule {
 
   public static final String TITLE = "$ Bremspedal klemmt $";
 
-  private Predicate<Move> gameRule = move -> move.getSpeed() >= move.getPred().getSpeed();
+  private Predicate<Move> gameRule = move -> move.getPred() == null || move.getSpeed() >= move.getPred().getSpeed();
 
   public BrakeClampRule(Game game) {
     super(game);

@@ -26,8 +26,8 @@ public class Move {
     return (yv & 63) << 26 | (xv & 63) << 20 | (y & 1023) << 10 | (x & 1023);
   }
 
-  public static MutableCollection<Move> getPossibleMoves(JSONArray json, Move previous) {
-    MutableCollection<Move> moves = new FastList<>();
+  public static MutableList<Move> getPossibleMoves(JSONArray json, Move previous) {
+    MutableList<Move> moves = new FastList<>();
     json.forEach(jsonObj -> moves.add(new LogMove((JSONObject) jsonObj, previous)));
     moves.forEach(move -> move.pathLen = 1);
     return moves;
@@ -167,8 +167,8 @@ public class Move {
     return totalLen == 0 || xv != 0 || yv != 0;
   }
 
-  public MutableCollection<Move> getNext() {
-    MutableCollection<Move> next = new FastList<>(9);
+  public MutableList<Move> getNext() {
+    MutableList<Move> next = new FastList<>(9);
     for (int i = -1; i <= 1; i++) {
       for (int j = -1; j <= 1; j++) {
         if (xv + i != 0 || yv + j != 0) {

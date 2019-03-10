@@ -94,6 +94,8 @@ public class Strategy {
   }
 
   public Evaluation evaluate(Player pl, MutableCollection<Evaluation> evals) {
+    if (evals.isEmpty())
+      return null;
     if (pl == player && type == Type.Offensive)
       return evals.min(comp(players.get(leader)));
     else if (pl != player && type == Type.Paranoid)
