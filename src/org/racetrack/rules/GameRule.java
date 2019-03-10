@@ -32,12 +32,12 @@ public class GameRule extends MapRule {
     return isMapCircuit() && hasXdFinishline(move) && !isXingFinishlineAllowed(move);
   }
 
-  public boolean hasNotXdFinishlineOnF1Circuit(Move lastMove) {
-    return isMapCircuit() && !hasXdFinishline(lastMove) && game.isFormula1();
+  public boolean hasNotXdFinishlineOnF1Circuit(LogMove lastMove) {
+    return isMapCircuit() && game.isFormula1() && !hasXdFinishline(lastMove);
   }
 
   public boolean hasXdFinishlineForDist(Move move) {
-    return isMapCircuit() && hasXdFinishline(move) && (game.isFormula1() || game.isClassic());
+    return isMapCircuit() && (game.isFormula1() || game.isClassic()) && hasXdFinishline(move);
   }
 
   protected boolean isXingFinishlineAllowed(Move move) {

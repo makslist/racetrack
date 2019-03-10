@@ -95,9 +95,8 @@ public class MoveChooser implements Callable<GameAction> {
       return true;
     if (game.isCrashAllowed() && game.getZzz() >= 6)
       return true;
-    if (game.isCrashAllowed() && game.isWithIq()) {
+    if (game.isCrashAllowed() && game.isWithIq())
       return true;
-    }
 
     return false;
   }
