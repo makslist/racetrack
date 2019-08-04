@@ -15,19 +15,19 @@ import org.racetrack.rules.*;
 
 public class PathFinder implements Callable<Paths> {
 
-  protected static final Logger logger = Logger.getLogger(PathFinder.class.toString());
+  private static final Logger logger = Logger.getLogger(PathFinder.class.toString());
 
-  protected static final int MAX_MOVE_TRESHOLD = 13;
-  protected static final int MAX_MOVE_LIMIT = 256;
+  private static final int MAX_MOVE_TRESHOLD = 13;
+  private static final int MAX_MOVE_LIMIT = 256;
 
-  protected Game game;
-  protected Player player;
+  private Game game;
+  private Player player;
 
-  protected GameRule rule;
-  protected CrashDetector crashDetector;
-  protected TSP tsp;
+  private GameRule rule;
+  private CrashDetector crashDetector;
+  private TSP tsp;
 
-  protected int minPathLength = MAX_MOVE_LIMIT;
+  private int minPathLength = MAX_MOVE_LIMIT;
 
   public PathFinder(Game game, Player player) {
     this.game = game;
@@ -45,7 +45,8 @@ public class PathFinder implements Callable<Paths> {
   }
 
   @Override
-  public Paths call() throws Exception {
+  public Paths call() {
+    Thread.currentThread().setName("PathFinder");
     Paths possiblePaths = rule.filterPossibles(new Paths(player.getNextMoves()));
     if (possiblePaths.isEmpty())
       return new Paths();
@@ -60,23 +61,30 @@ public class PathFinder implements Callable<Paths> {
     if (game.getMap().getSetting().getMaxTours() > 0) {
       tours = tours.take(game.getMap().getSetting().getMaxTours());
     }
-    Paths shortestPaths = getMinPathsForTours(tours, possiblePaths);
 
-    if (shortestPaths.isEmpty())
-      return possiblePaths;
-
-    return shortestPaths;
+    return getMinPathsForTours(tours, possiblePaths);
   }
 
   protected Paths getMinPathsForTours(Collection<Tour> tours, Paths possibles) {
     Paths paths = new Paths();
-    int maxThreads = Integer.max(Settings.getInstance().getInt(Property.maxParallelTourThreads), 1);
+    int maxThreads = Integer.max(Settings.getInstance().getMaxParallelTourThreads(), 1);
     int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors());
-    ExecutorService threadPool = Executors.newWorkStealingPool(minThreads);
-    CompletionService<Paths> service = new ExecutorCompletionService<>(threadPool);
+    ExecutorService executorService = Executors.newFixedThreadPool(minThreads);
+    CompletionService<Paths> service = new ExecutorCompletionService<>(executorService);
     for (Tour tour : tours) {
       service.submit(travelTour(tour, possibles));
     }
+
+    executorService.shutdown();
+    try {
+      if (!executorService.awaitTermination(Settings.getInstance().maxExecutionTimeMinutes(), TimeUnit.MINUTES)) {
+        executorService.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      executorService.shutdownNow();
+      return new Paths();
+    }
+
     for (int i = 1; i <= tours.size(); i++) {
       try {
         Paths travel = service.take().get();
@@ -87,9 +95,9 @@ public class PathFinder implements Callable<Paths> {
         }
       } catch (InterruptedException | ExecutionException e) {
         logger.warning(e.getMessage());
+        return new Paths();
       }
     }
-    threadPool.shutdown();
 
     if (game.isCrashAllowed()) {
       logger.fine("Game " + game.getId() + ": Begining to trim the path.");
@@ -106,8 +114,11 @@ public class PathFinder implements Callable<Paths> {
    */
   protected Callable<Paths> travelTour(Tour tour, Paths possibles) {
     return () -> {
+      Thread.currentThread().setName("PathFinderTravelTour");
       Paths intermedPaths = possibles;
       for (MapTile cp : tour.getSequence()) {
+        if (Thread.currentThread().isInterrupted())
+          throw new InterruptedException();
         if (!intermedPaths.isEmpty()) {
           intermedPaths = findPathToCp(intermedPaths, cp, false);
         }
@@ -126,6 +137,9 @@ public class PathFinder implements Callable<Paths> {
 
     Paths shortestPaths = Paths.getCopy(filtered);
     while (!queue.isEmpty()) {
+      if (Thread.currentThread().isInterrupted())
+        return new Paths();
+
       Move move = queue.poll();
       int pathLength = move.getPathLen();
       if ((pathLength > minPathLength)

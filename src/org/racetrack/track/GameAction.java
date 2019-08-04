@@ -6,12 +6,26 @@ public class GameAction {
 
   private Game game;
   private boolean quitGame;
+  private boolean skipGame;
+  private boolean notNext;
   private Move move;
   private String comment;
 
   public static GameAction quitGame(Game game) {
     GameAction action = new GameAction(game);
     action.quitGame = true;
+    return action;
+  }
+
+  public static GameAction notNext(Game game) {
+    GameAction action = new GameAction(game);
+    action.notNext = true;
+    return action;
+  }
+
+  public static GameAction skipGame(Game game) {
+    GameAction action = new GameAction(game);
+    action.skipGame = true;
     return action;
   }
 
@@ -29,8 +43,16 @@ public class GameAction {
     return game;
   }
 
-  public boolean isQuitGame() {
+  public boolean quitGame() {
     return quitGame;
+  }
+
+  public boolean isNotNext() {
+    return notNext;
+  }
+
+  public boolean skipGame() {
+    return skipGame;
   }
 
   public Move getMove() {

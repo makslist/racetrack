@@ -102,7 +102,6 @@ public class NavigationPanel extends JPanel {
   }
 
   private class PathWorker extends SwingWorker<Paths, Void> {
-
     private final JFrame frame;
     private PathFinder finder;
 

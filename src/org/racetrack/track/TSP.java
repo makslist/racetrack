@@ -12,13 +12,13 @@ import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.eclipse.collections.impl.multimap.set.*;
 import org.eclipse.collections.impl.set.mutable.primitive.*;
+import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.rules.*;
 
 public final class TSP {
 
   private static final int DIFF_DISTANCE = 7;
-  private static final int MAX_MOVE = 7000;
   private static final int MAX_TOURS = 200;
 
   private static final Logger logger = Logger.getLogger(PathFinder.class.toString());
@@ -36,37 +36,49 @@ public final class TSP {
     if (missingCps.isEmpty())
       return Tour.SINGLE_FINISH_TOUR;
 
-    ExecutorService executor = Executors.newCachedThreadPool();
-
+    ExecutorService executorService = Executors.newFixedThreadPool(Settings.getInstance().getMaxParallelTourThreads());
     MutableList<MapTile> fromCps = new FastList<>(missingCps).with(MapTile.FINISH);
     MutableList<MapTile> toCps = new FastList<>(fromCps);
     for (MapTile fromCp : fromCps) {
       for (MapTile toCp : toCps.without(fromCp)) {
-        executor.submit(() -> edgeRange(fromCp, toCp));
+        executorService.submit(() -> edgeRange(fromCp, toCp));
       }
     }
 
-    executor.shutdown();
+    executorService.shutdown();
     try {
-      executor.awaitTermination(20, TimeUnit.MINUTES);
+      if (!executorService.awaitTermination(20, TimeUnit.MINUTES)) {
+        executorService.shutdownNow();
+      }
     } catch (InterruptedException e) {
+      executorService.shutdownNow();
       logger.warning(e.getMessage());
     }
 
-    MutableList<Tour> tours = new FastList<>();
     MutableCollection<Move> startMoves = possibles.select(rule.filterPossibles());
     CrashDetector crashDetector = new CrashDetector(rule, startMoves);
+
+    MutableList<Tour> tours = new FastList<>();
     for (MapTile toCp : missingCps) {
       short dist = findRange(false, startMoves, toCp, crashDetector);
       tours.addAll(buildTours(new Tour(MapTile.START, toCp, dist), new FastList<>(missingCps).without(toCp)));
     }
 
-    int minimum = tours.min().getDistance();
-    return tours.select(t -> t.getDistance() <= minimum + DIFF_DISTANCE).sortThis().take(MAX_MOVE / minimum)
-        .take(MAX_TOURS);
+    if (tours.size() > MAX_TOURS) {
+      short minDistToFinish = findRange(false, startMoves, MapTile.FINISH, crashDetector);
+      if (tours.anySatisfy(t -> t.getDistance() >= minDistToFinish - 3)) {
+        tours = tours.reject(t -> t.getDistance() < minDistToFinish - 3);
+      }
+
+      int shortestTourLength = tours.min().getDistance();
+      int maxTourLength = shortestTourLength + Math.max((int) Math.ceil(shortestTourLength * 0.1), DIFF_DISTANCE);
+      tours = tours.select(t -> t.getDistance() <= maxTourLength);
+    }
+    return tours.sortThis().take(MAX_TOURS);
   }
 
   private void edgeRange(MapTile fromCp, MapTile toCp) {
+    Thread.currentThread().setName("EdgeRange");
     RichIterable<Edge> edgeList = edges.get(fromCp);
     Edge detect = edgeList.detect(edge -> edge.connects(toCp));
     if (detect == null) {
@@ -88,7 +100,7 @@ public final class TSP {
         } else if (isFromCp && toCp.isCp() && rule.hasXdFinishlineForDist(move)) {
           continue;
         } else if (rule.hasXdCp(move, toCp))
-          return move.getTotalLen();
+          return move.getPathLen();
         else {
           MutableCollection<Move> nextMoves = rule.filterNextMvDist(move);
           if (!nextMoves.isEmpty()) {

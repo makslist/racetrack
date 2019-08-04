@@ -6,6 +6,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.*;
 
+import org.eclipse.collections.api.list.*;
+import org.eclipse.collections.impl.list.mutable.*;
 import org.java_websocket.client.*;
 import org.racetrack.chat.*;
 import org.racetrack.config.*;
@@ -16,8 +18,8 @@ public class BotRunner implements Runnable {
 
   private static final Logger logger = Logger.getLogger(BotRunner.class.getName());
 
-  private ExecutorService threadPool = Executors.newSingleThreadExecutor();
-  private CompletionService<GameAction> moveFinder = new ExecutorCompletionService<>(threadPool);
+  private ExecutorService executorService = Executors.newSingleThreadExecutor();
+  private CompletionService<GameAction> moveFinder = new ExecutorCompletionService<>(executorService);
   private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
   private String userLogin;
@@ -28,22 +30,21 @@ public class BotRunner implements Runnable {
   private User user;
   private boolean withChat;
   private boolean withNewGames;
+  private boolean useBetaApi;
   private ChatModule chatbot;
 
   private BlockingQueue<Game> games = new LinkedBlockingQueue<>();
   private BlockingQueue<Chat> chatMsg = new LinkedBlockingQueue<>();
-  private Set<Object> gamesInProcess = Collections.synchronizedSet(new ConcurrentSkipListSet<>());
+  private Set<Integer> ignoreGames = new HashSet<Integer>();
 
   public BotRunner() {
     Settings settings = Settings.getInstance();
-    userLogin = settings.get(Property.user);
-    password = settings.get(Property.password);
-    String secureString = settings.get(Property.secureConnection);
-    secureConnection = secureString != null ? Boolean.valueOf(secureString) : true;
-    String chatString = settings.get(Property.withChat);
-    withChat = chatString != null ? Boolean.valueOf(chatString) : false;
-    String newGamesString = settings.get(Property.withNewGames);
-    withNewGames = newGamesString != null ? Boolean.valueOf(newGamesString) : false;
+    userLogin = settings.getUserLogin();
+    password = settings.getPassword();
+    secureConnection = settings.useSecureConnection();
+    withChat = settings.activateChatbot();
+    withNewGames = settings.createNewGames();
+    useBetaApi = settings.useBetaApi();
 
     if (userLogin == null || password == null) {
       System.out.println("No username or password given");
@@ -54,7 +55,7 @@ public class BotRunner implements Runnable {
   @Override
   public void run() {
     try {
-      karo = new KaroClient(userLogin, password, secureConnection);
+      karo = new KaroClient(userLogin, password, secureConnection, useBetaApi);
       if (karo.logIn()) {
         user = karo.getUser();
 
@@ -71,10 +72,7 @@ public class BotRunner implements Runnable {
       return;
     }
 
-    // backup thread for loading active games in case webclient crashed
-    scheduler.scheduleWithFixedDelay(() -> {
-      games.addAll(user.getNextGames());
-    }, 0, 8, TimeUnit.MINUTES);
+    games.addAll(user.getNextGames());
 
     // show bot as active in chat by updating chat-site
     scheduler.scheduleWithFixedDelay(() -> {
@@ -93,25 +91,29 @@ public class BotRunner implements Runnable {
           }
         }
       }
-    }, computeDelayMinutes(6, 30, 0), 24 * 60, TimeUnit.MINUTES);
+    }, computeDelayMinutes(6, 30, 0), 24 * 60 * 60, TimeUnit.SECONDS);
 
-    // creates one game every day
+    // creates games every day
     scheduler.scheduleAtFixedRate(() -> {
       if (withNewGames) {
-        Game game = Game.newRandom(null, userLogin, new Random().nextBoolean());
-        karo.addGame(game);
+        Game random = Game.newRandom(null, userLogin, new Random().nextBoolean());
+        karo.addGame(random);
 
         Karolenderblatt blatt = Karolenderblatt.getToday();
         String title = "!KaroIQ!lenderblatt: " + blatt.getLine();
         Game karolenderGame = Game.newRandom(title, userLogin, false);
         karo.addGame(karolenderGame);
-      }
-    }, computeDelayMinutes(7, 0, 0), 24 * 60, TimeUnit.MINUTES);
 
-    new Thread(websocketClient()).start();
-    new Thread(chat()).start();
-    new Thread(queueGame()).start();
-    new Thread(postCalculatedMove()).start();
+        MutableList<User> bots = User.getActive().select(User.bots);
+        MutableList<User> battleBots = bots.select(
+            user -> new FastList<>().with("DeepPink", "DeepGray", "Slybotone", "Botrix").contains(user.getLogin()));
+      }
+    }, computeDelayMinutes(7, 0, 0), 24 * 60 * 60, TimeUnit.SECONDS);
+
+    new Thread(websocketClient(), "WebSocketControl").start();
+    new Thread(chat(), "ChatRespond").start();
+    new Thread(queueGame(), "GameQueue").start();
+    new Thread(postCalculatedMove(), "MovePoster").start();
   }
 
   private Runnable websocketClient() {
@@ -127,8 +129,10 @@ public class BotRunner implements Runnable {
           }
         }
         try {
-          Thread.sleep(KaroWebSocketClient.TIME_TO_CHECK_FOR_CONNECTION);
+          Thread.sleep(KaroWebSocketClient.TIME_TO_CHECK_FOR_CONNECTION_MILLIS);
         } catch (InterruptedException e) {
+          client.close();
+          return;
         }
       }
     };
@@ -152,7 +156,7 @@ public class BotRunner implements Runnable {
             }
           }
         } catch (InterruptedException e) {
-          logger.warning(e.getMessage());
+          return;
         }
       }
     };
@@ -163,24 +167,13 @@ public class BotRunner implements Runnable {
       while (true) {
         try {
           Game game = games.take();
-          // ignore already loaded, but currently unfinished games
-          if (gamesInProcess.contains(game.getId())) {
-            continue;
-          }
-
-          game.refresh();
-
-          try {
-            Player player = game.getPlayer(user);
-            if (game.isNextPlayer(player)) {
-              if (gamesInProcess.add(game.getId())) {
-                moveFinder.submit(new MoveChooser(game));
-              }
-            }
-          } catch (NullPointerException | OutOfMemoryError npe) {
-            logger.severe("MoveFinder Exception: " + npe.getMessage());
+          if (!ignoreGames.contains(game.getId())) {
+            moveFinder.submit(new MoveChooser(game, user));
           }
         } catch (InterruptedException e) {
+          return;
+        } catch (NullPointerException | OutOfMemoryError e) {
+          logger.severe("MoveFinder Exception: " + e.getMessage());
         }
       }
     };
@@ -190,11 +183,25 @@ public class BotRunner implements Runnable {
     return () -> {
       while (true) {
         try {
-          GameAction action = moveFinder.take().get();
+          Future<GameAction> futureAction = moveFinder.poll(2 + Settings.getInstance().maxExecutionTimeMinutes(),
+              TimeUnit.MINUTES);
 
+          if (futureAction == null) {
+            games.addAll(user.getNextGames()); // retrieve new games when timeout occures
+            continue;
+          }
+
+          GameAction action = futureAction.get();
           Game game = action.getGame();
-          gamesInProcess.remove(game.getId());
-          if (action.isQuitGame()) {
+          if (action.isNotNext()) {
+            continue;
+          }
+          if (action.skipGame()) {
+            ignoreGames.add(game.getId());
+            logger.warning(game.getId() + ": Game added to skiplist.");
+            continue;
+          }
+          if (action.quitGame()) {
             karo.quitGame(game.getId());
           } else {
             Move move = action.getMove();
@@ -211,13 +218,14 @@ public class BotRunner implements Runnable {
               }
             } else {
               karo.resetAfterCrash(game.getId());
-              games.put(game.refresh());
+              games.put(game.update());
             }
           }
 
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (InterruptedException e) {
+          return;
+        } catch (ExecutionException e) {
           logger.warning(e.getMessage());
-          e.printStackTrace();
         }
       }
     };

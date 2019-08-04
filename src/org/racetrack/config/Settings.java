@@ -5,6 +5,12 @@ import java.util.*;
 
 public class Settings {
 
+  public enum Property {
+
+    maxParallelTourThreads, user, password, secureConnection, withChat, withNewGames, useBetaApi, maxExecutionTimeMinutes
+
+  }
+
   private static Settings settings;
   private static Properties properties;
 
@@ -51,6 +57,44 @@ public class Settings {
     if (value != null)
       return Integer.valueOf(value);
     return 0;
+  }
+
+  public String getUserLogin() {
+    return get(Property.user);
+  }
+
+  public String getPassword() {
+    return get(Property.password);
+  }
+
+  public boolean useSecureConnection() {
+    String secureString = get(Property.secureConnection);
+    return secureString != null ? Boolean.valueOf(secureString) : true;
+  }
+
+  public boolean activateChatbot() {
+    String chatString = get(Property.withChat);
+    return chatString != null ? Boolean.valueOf(chatString) : false;
+  }
+
+  public boolean createNewGames() {
+    String newGamesString = get(Property.withNewGames);
+    return newGamesString != null ? Boolean.valueOf(newGamesString) : false;
+  }
+
+  public boolean useBetaApi() {
+    String useBetaApiString = get(Property.useBetaApi);
+    return useBetaApiString != null ? Boolean.valueOf(useBetaApiString) : false;
+  }
+
+  public int getMaxParallelTourThreads() {
+    int maxThreads = getInt(Property.maxParallelTourThreads);
+    int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors() - 1);
+    return Integer.max(minThreads, 1);
+  }
+
+  public int maxExecutionTimeMinutes() {
+    return getInt(Property.maxExecutionTimeMinutes);
   }
 
 }

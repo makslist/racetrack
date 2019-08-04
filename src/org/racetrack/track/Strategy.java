@@ -45,6 +45,7 @@ public class Strategy {
 
     strat.player = player;
 
+    strat.playerLength = playerLength;
     for (int pos = 0; pos < playerLength.size(); pos++) {
       strat.players.put(playerLength.get(pos).key, pos);
     }
@@ -70,6 +71,7 @@ public class Strategy {
 
   private Type type;
   private MutableObjectIntMap<Player> players = ObjectIntMaps.mutable.empty();
+  private MutableList<Pair<Player, Integer>> playerLength;
   private Player player;
   private Player leader;
   private int gamelength;
@@ -117,13 +119,22 @@ public class Strategy {
     return avg;
   }
 
-  public Evaluation initEval() {
+  public Evaluation gameEnd() {
     return new Evaluation(players.size());
+  }
+
+  public Evaluation maxDepth() {
+    Evaluation eval = new Evaluation(players.size());
+    for (Pair<Player, Integer> length : playerLength) {
+      int roundsAfterLeader = length.value - gamelength;
+      eval.ratings[players.get(length.key)] = roundsAfterLeader == 0 ? 0 : -roundsAfterLeader;
+    }
+    return eval;
   }
 
   public Evaluation finish(Evaluation eval, Player player, int round) {
     int roundsAfterLeader = round - gamelength;
-    eval.ratings[players.get(player)] = roundsAfterLeader == 0 ? 0 : -(roundsAfterLeader + 1);
+    eval.ratings[players.get(player)] = roundsAfterLeader == 0 ? 0 : -roundsAfterLeader;
     return eval;
   }
 

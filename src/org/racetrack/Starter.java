@@ -147,17 +147,17 @@ public class Starter {
           .append("Set the size of a tile (in pixel) in the picture of the map" + "\n\n");
 
       help.append("Possible properties to set are:\n");
-      help.append("\t" + Property.maxParallelGameThreads.name() + "\t\t" + "Only in bot mode" + "\n");
-      help.append("\t" + Property.withChat.name() + "=(true|false)")
+      help.append("\t" + Settings.Property.withChat.name() + "=(true|false)")
           .append("\t\t" + "Start a chatbot (only in bot mode)" + "\n");
-      help.append("\t" + Property.maxParallelTourThreads.name()).append("\t\t")
-          .append("Max number of threads to actually calculate the distance of the shortes tour." + "\n");
+      help.append("\t" + Settings.Property.maxParallelTourThreads.name()).append("\t\t")
+          .append("Max number of threads to actually calculate the distance of the shortest tour." + "\n");
       help.append("\t\t\t\t\t")
           .append("on multi-processor platforms set this to #cores (or #cores-1 to keep the computer responsive")
           .append("\n");
-      help.append("\t" + Property.user.name()).append("\t\t\t\t" + "Login for bot or gui" + "\n");
-      help.append("\t" + Property.password.name()).append("\t\t\t" + "Password for login" + "\n");
-      help.append("\t" + Property.secureConnection.name() + "=(true|false)" + "\t").append("Use encrypted connection");
+      help.append("\t" + Settings.Property.user.name()).append("\t\t\t\t" + "Login for bot or gui" + "\n");
+      help.append("\t" + Settings.Property.password.name()).append("\t\t\t" + "Password for login" + "\n");
+      help.append("\t" + Settings.Property.secureConnection.name() + "=(true|false)" + "\t")
+          .append("Use encrypted connection");
       System.out.print(help);
     }
   }

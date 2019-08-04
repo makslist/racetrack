@@ -18,7 +18,6 @@ import org.eclipse.collections.impl.list.mutable.*;
 import org.racetrack.gui.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.karoapi.Game.*;
-import org.racetrack.rules.RuleFactory.*;
 import org.racetrack.track.*;
 
 public class MapAlyzor {
@@ -54,21 +53,21 @@ public class MapAlyzor {
       }
     }
 
-    ExecutorService threadPool = Executors.newWorkStealingPool();
+    ExecutorService execeutorService = Executors.newWorkStealingPool();
 
     String filteredMapname = !map.getName().equals("") ? map.getName() : String.valueOf(map.getId());
     NumberFormat nf = new DecimalFormat("0000");
     String fileMapname = "./" + nf.format(map.getId()) + " - " + filteredMapname.replaceAll("[^a-zA-Z0-9.-]", "_");
 
     MutableList<Game> games = Lists.mutable.empty();
-    games.add(Game.getFakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2));
-    games.add(Game.getFakeGame(map, RuleType.STANDARD, false, Dir.classic, Crash.forbidden, 2));
-    games.add(Game.getFakeGame(map, RuleType.STANDARD, true, Dir.formula1, Crash.forbidden, 2));
-    games.add(Game.getFakeGame(map, RuleType.STANDARD, true, Dir.free, Crash.forbidden, 2));
+    games.add(Game.getTestGame(map, true, Dir.classic, Crash.forbidden, 2));
+    games.add(Game.getTestGame(map, false, Dir.classic, Crash.forbidden, 2));
+    games.add(Game.getTestGame(map, true, Dir.formula1, Crash.forbidden, 2));
+    games.add(Game.getTestGame(map, true, Dir.free, Crash.forbidden, 2));
 
     MutableMap<Game, Future<Paths>> paths = Maps.mutable.empty();
     for (Game game : games) {
-      paths.put(game, threadPool.submit(new PathFinder(game, game.getNext())));
+      paths.put(game, execeutorService.submit(new PathFinder(game, game.getNext())));
     }
 
     System.out.print("|-\r\n" + "| [[Datei:Map_" + map.getId() + ".png|50x20px|link=Karte:" + map.getId() + "]] || "
@@ -100,7 +99,7 @@ public class MapAlyzor {
     }
     System.out.println();
 
-    threadPool.shutdown();
+    execeutorService.shutdownNow();
   }
 
   private void writeAnalyzeFile(Paths paths, String fileName) {

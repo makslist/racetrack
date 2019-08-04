@@ -32,16 +32,15 @@ public class KaroGui extends JFrame {
 
   public KaroGui() {
     final Settings settings = Settings.getInstance();
-    String userId = settings.get(Property.user);
-    String password = settings.get(Property.password);
-    String secureString = settings.get(Property.secureConnection);
-    boolean secureConnection = secureString != null ? Boolean.valueOf(secureString) : true;
+    String userId = settings.getUserLogin();
+    String password = settings.getPassword();
+    boolean secureConnection = settings.useSecureConnection();
 
     if (userId == null || password == null) {
       System.out.println("No username or password given");
       System.exit(1);
     } else {
-      KaroClient karo = new KaroClient(userId, password, secureConnection);
+      KaroClient karo = new KaroClient(userId, password, secureConnection, false);
       if (karo.logIn()) {
         user = karo.getUser();
         setTitle("Karopapier.de - User: " + user.getLogin());
