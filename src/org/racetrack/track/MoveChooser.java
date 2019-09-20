@@ -68,12 +68,15 @@ public class MoveChooser implements Callable<GameAction> {
       executorService.shutdownNow();
       return GameAction.skipGame(game);
     }
-    for (Player pl : actualPlayers) {
+    for (Player pl : futurePaths.keySet()) {
       Future<Paths> future = futurePaths.get(pl);
       try {
-        paths.put(pl, future.get());
-      } catch (InterruptedException | ExecutionException e) {
+        paths.put(pl, future.get(1, TimeUnit.SECONDS));
+      } catch (ExecutionException e) {
         logger.warning(e.getMessage());
+        return GameAction.skipGame(game);
+      } catch (InterruptedException | TimeoutException e) {
+        return GameAction.skipGame(game);
       }
     }
 
@@ -123,6 +126,11 @@ public class MoveChooser implements Callable<GameAction> {
     if (game.isCrashAllowed() && game.getZzz() >= 6)
       return true;
     if (game.isCrashAllowed() && game.isWithIq())
+      return true;
+
+    // quit iq-duel with humans
+    MutableList<Player> otherPlayers = game.getActivePlayers().reject(p -> p.equals(player));
+    if (game.isWithIq() && otherPlayers.size() == 1 && otherPlayers.noneSatisfy(p -> p.isBot()))
       return true;
 
     return false;

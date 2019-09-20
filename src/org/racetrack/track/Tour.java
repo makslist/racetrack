@@ -37,10 +37,10 @@ public class Tour implements Comparable<Tour> {
   }
 
   public Tour copy() {
-    Tour tour2 = new Tour();
-    tour2.end = end;
-    tour2.edges = new FastList<>(edges);
-    return tour2;
+    Tour tour = new Tour();
+    tour.end = end;
+    tour.edges = new FastList<>(edges);
+    return tour;
   }
 
   public void addEdge(Edge edge) {

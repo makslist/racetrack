@@ -47,9 +47,6 @@ public class KaroGui extends JFrame {
 
         games = new Vector<>(user.getNextGames());
         Collections.sort(games, gameIdComparator);
-        // for (KaroMap map : KaroMap.getAll()) {
-        // games.add(new FakeGame(map, RuleType.STANDARD, true, Dir.classic, Crash.forbidden, 2));
-        // }
       } else {
         System.err.println("No user found! Please check username and password.");
         System.exit(1);

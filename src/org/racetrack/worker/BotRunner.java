@@ -6,8 +6,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.*;
 
-import org.eclipse.collections.api.list.*;
-import org.eclipse.collections.impl.list.mutable.*;
 import org.java_websocket.client.*;
 import org.racetrack.chat.*;
 import org.racetrack.config.*;
@@ -103,10 +101,6 @@ public class BotRunner implements Runnable {
         String title = "!KaroIQ!lenderblatt: " + blatt.getLine();
         Game karolenderGame = Game.newRandom(title, userLogin, false);
         karo.addGame(karolenderGame);
-
-        MutableList<User> bots = User.getActive().select(User.bots);
-        MutableList<User> battleBots = bots.select(
-            user -> new FastList<>().with("DeepPink", "DeepGray", "Slybotone", "Botrix").contains(user.getLogin()));
       }
     }, computeDelayMinutes(7, 0, 0), 24 * 60 * 60, TimeUnit.SECONDS);
 
@@ -198,7 +192,7 @@ public class BotRunner implements Runnable {
           }
           if (action.skipGame()) {
             ignoreGames.add(game.getId());
-            logger.warning(game.getId() + ": Game added to skiplist.");
+            System.out.println(game.getId() + ": Game added to skiplist.");
             continue;
           }
           if (action.quitGame()) {

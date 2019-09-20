@@ -27,13 +27,13 @@ public class MapRule {
 
   private Boolean isMapCircuitCached;
 
-  protected AngleRange angleRange;
+  protected FinishLineAngle finishAngle;
   private int startFinishDist = 0;
 
   public MapRule(KaroMap map) {
     this.map = map;
 
-    angleRange = getAngleForFinishVector();
+    finishAngle = getAngleForFinishVector();
   }
 
   private boolean isOffTrack(int x, int y, int xv, int yv) {
@@ -202,8 +202,8 @@ public class MapRule {
     }
   }
 
-  protected AngleRange getAngleForFinishVector() {
-    AngleRange angleRange = null;
+  protected FinishLineAngle getAngleForFinishVector() {
+    FinishLineAngle angleRange = null;
     Set<Move> visitedMoves = Sets.mutable.empty();
     Queue<Move> moveQueue = new LinkedList<>(map.getTilesAsMoves(MapTile.START));
 
@@ -216,7 +216,7 @@ public class MapRule {
         visitedMoves.add(move);
         if (hasXdFinishline(move)) {
           if (angleRange == null) {
-            angleRange = new AngleRange(move);
+            angleRange = new FinishLineAngle(move);
             startFinishDist = move.getPathLen();
           }
           angleRange.add(move);
@@ -235,7 +235,7 @@ public class MapRule {
     if (map.isSettingSet() && map.isCircuit() != null) {
       isMapCircuitCached = map.isCircuit();
     } else if (map.isCpClustered(MapTile.FINISH)) {
-      if (angleRange != null && angleRange.isRangeSmallerThanPi() && startFinishDist > 0
+      if (finishAngle != null && finishAngle.isSmallerThanPi() && startFinishDist > 0
           && startFinishDist <= MAX_DIST_FINISH_FOR_F1) {
         isMapCircuitCached = Boolean.TRUE;
       } else {
@@ -245,6 +245,55 @@ public class MapRule {
       isMapCircuitCached = Boolean.FALSE;
     }
     return isMapCircuitCached;
+  }
+
+  protected class FinishLineAngle {
+
+    private double offset = 0d;
+    private double lower = 0d;
+    private double upper = 0d;
+    private double center = 0d;
+
+    protected FinishLineAngle(Move move) {
+      offset = move.getAngle();
+    }
+
+    protected void add(Move move) {
+      double angle = getNormalizedAngle(move);
+
+      if (angle < lower) {
+        lower = angle;
+      }
+      if (angle > upper) {
+        upper = angle;
+      }
+      center = (upper + lower) / 2;
+    }
+
+    protected boolean isSmallerThanPi() {
+      return (int) (Math.abs(lower) + Math.abs(upper)) <= 180;
+    }
+
+    /**
+     * Tells if move-angle is in angle-range
+     */
+    protected boolean isF1Range(Move move) {
+      return Math.abs(getNormalizedAngle(move) - center) < 90;
+    }
+
+    protected boolean isClassicRange(Move move) {
+      return Math.abs(getNormalizedAngle(move) - center) > 90;
+    }
+
+    private double getNormalizedAngle(Move move) {
+      double normalized = move.getAngle() - offset;
+      if (normalized > 180)
+        return normalized - 360;
+      if (normalized < -180)
+        return normalized + 360;
+      return normalized;
+    }
+
   }
 
 }

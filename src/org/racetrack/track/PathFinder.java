@@ -2,6 +2,7 @@ package org.racetrack.track;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 import java.util.logging.*;
 
 import org.eclipse.collections.api.block.function.*;
@@ -27,7 +28,7 @@ public class PathFinder implements Callable<Paths> {
   private CrashDetector crashDetector;
   private TSP tsp;
 
-  private int minPathLength = MAX_MOVE_LIMIT;
+  private AtomicInteger minPathLength = new AtomicInteger(MAX_MOVE_LIMIT);
 
   public PathFinder(Game game, Player player) {
     this.game = game;
@@ -40,7 +41,6 @@ public class PathFinder implements Callable<Paths> {
     this.game = game;
     this.player = game.getPlayer(player.getId());
     this.rule = rule;
-
     this.tsp = tsp;
   }
 
@@ -87,11 +87,13 @@ public class PathFinder implements Callable<Paths> {
 
     for (int i = 1; i <= tours.size(); i++) {
       try {
-        Paths travel = service.take().get();
-        int travelLength = travel.getMinTotalLength();
-        if (travelLength <= minPathLength) {
-          minPathLength = travelLength;
-          paths.merge(travel);
+        Future<Paths> futurePath = service.poll();
+        if (futurePath != null) {
+          Paths travel = futurePath.get();
+          int travelLength = travel.getMinTotalLength();
+          if (travelLength <= minPathLength.get()) {
+            paths.merge(travel);
+          }
         }
       } catch (InterruptedException | ExecutionException e) {
         logger.warning(e.getMessage());
@@ -100,7 +102,7 @@ public class PathFinder implements Callable<Paths> {
     }
 
     if (game.isCrashAllowed()) {
-      logger.fine("Game " + game.getId() + ": Begining to trim the path.");
+      System.out.print("Game " + game.getId() + ": Begining to trim the path.");
       paths.trimCrashPaths(game.getZzz());
     }
 
@@ -118,10 +120,16 @@ public class PathFinder implements Callable<Paths> {
       Paths intermedPaths = possibles;
       for (MapTile cp : tour.getSequence()) {
         if (Thread.currentThread().isInterrupted())
-          throw new InterruptedException();
-        if (!intermedPaths.isEmpty()) {
-          intermedPaths = findPathToCp(intermedPaths, cp, false);
-        }
+          return new Paths();
+        if (intermedPaths.isEmpty() || intermedPaths.getMinTotalLength() > minPathLength.get())
+          return new Paths();
+        intermedPaths = findPathToCp(intermedPaths, cp, false);
+      }
+      if (!intermedPaths.isEmpty()) {
+        int minTotalLength = intermedPaths.getMinTotalLength();
+        minPathLength.getAndUpdate(x -> {
+          return x > minTotalLength ? minTotalLength : x;
+        });
       }
       return intermedPaths;
     };
@@ -133,17 +141,13 @@ public class PathFinder implements Callable<Paths> {
     Queue<Move> queue = ShortBucketPriorityQueue.of(filtered.getEndMoves(),
         (Function<Move, Short>) move -> move.getTotalLen());
     boolean crossedCP = false;
-    int minPathToCpLength = minPathLength; // initialize with global known minimum
+    int minPathLengthToCp = minPathLength.get(); // initialize with global known minimum
 
     Paths shortestPaths = Paths.getCopy(filtered);
     while (!queue.isEmpty()) {
-      if (Thread.currentThread().isInterrupted())
-        return new Paths();
-
       Move move = queue.poll();
       int pathLength = move.getPathLen();
-      if ((pathLength > minPathLength)
-          || (pathLength > minPathToCpLength + (cp.isFinish() && !crossF1Finish ? 0 : MAX_MOVE_TRESHOLD)))
+      if (pathLength > minPathLengthToCp + (cp.isFinish() && !crossF1Finish ? 0 : MAX_MOVE_TRESHOLD))
         return shortestPaths;
 
       Move visitedMove = visitedMoves.get(move.hashCode());
@@ -159,14 +163,14 @@ public class PathFinder implements Callable<Paths> {
           shortestPaths.add(move);
           if (!crossedCP) {
             crossedCP = true;
-            minPathToCpLength = pathLength;
+            minPathLengthToCp = pathLength;
           }
         } else {
           Collection<Move> nextMoves = rule.filterNextMv(move);
 
           if (!nextMoves.isEmpty()) {
             queue.addAll(nextMoves);
-          } else if ((queue.isEmpty() && minPathToCpLength >= minPathLength) || game.isCrashAllowed()
+          } else if ((queue.isEmpty() && minPathLengthToCp >= minPathLength.get()) || game.isCrashAllowed()
               || crashDetector.isCrashAhead(move)) {
             queue.addAll(move.getMovesAfterCrash(game.getZzz()));
           }

@@ -44,9 +44,9 @@ public class GameRule extends MapRule {
     if (isMapCircuit()) {
       switch (game.getDirection()) {
       case classic:
-        return angleRange.isNotInRange(move);
+        return finishAngle.isClassicRange(move);
       case formula1:
-        return angleRange.isInRange(move);
+        return finishAngle.isF1Range(move);
       default: // Dir.free
         return true;
       }
