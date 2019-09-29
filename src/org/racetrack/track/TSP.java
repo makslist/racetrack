@@ -63,7 +63,7 @@ public final class TSP {
 
     if (!game.isFormula1()) { // findRange to Finish doesn't work before Xing finish line first
       int minDistToFinish = findRange(false, startMoves, MapTile.FINISH, crashDetector);
-      if (minDistToFinish > 100
+      if (minDistToFinish > 20
           && tours.anySatisfy(t -> t.getDistance() >= minDistToFinish * (areCpsClustered ? 0.8 : 0.9))) {
         tours = tours.reject(t -> t.getDistance() < minDistToFinish * (areCpsClustered ? 0.8 : 0.9));
       }

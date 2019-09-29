@@ -8,6 +8,7 @@ public class GameAction {
   private boolean quitGame;
   private boolean skipGame;
   private boolean notNext;
+  private boolean crash;
   private Move move;
   private String comment;
 
@@ -23,9 +24,16 @@ public class GameAction {
     return action;
   }
 
-  public static GameAction skipGame(Game game) {
+  public static GameAction skipGame(Game game, String reason) {
     GameAction action = new GameAction(game);
     action.skipGame = true;
+    action.comment = reason != null ? reason : "";
+    return action;
+  }
+
+  public static GameAction crash(Game game) {
+    GameAction action = new GameAction(game);
+    action.crash = true;
     return action;
   }
 
@@ -53,6 +61,10 @@ public class GameAction {
 
   public boolean skipGame() {
     return skipGame;
+  }
+
+  public boolean isCrash() {
+    return crash;
   }
 
   public Move getMove() {

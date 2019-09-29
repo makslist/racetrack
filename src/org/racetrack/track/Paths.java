@@ -9,14 +9,16 @@ import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.map.primitive.*;
 import org.eclipse.collections.api.multimap.*;
 import org.eclipse.collections.api.set.*;
-import org.eclipse.collections.api.set.primitive.*;
 import org.eclipse.collections.impl.factory.*;
-import org.eclipse.collections.impl.factory.primitive.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.eclipse.collections.impl.map.mutable.primitive.*;
 import org.racetrack.karoapi.*;
 
 public class Paths {
+
+  public static Paths empty() {
+    return new Paths();
+  }
 
   public static Paths getCopy(Paths path) {
     Paths copy = new Paths();
@@ -29,10 +31,6 @@ public class Paths {
     copy.comment = path.comment;
     copy.moves = filtered;
     return copy;
-  }
-
-  private static MutableCollection<Move> getNonCrashPredecessors(MutableCollection<Move> moves) {
-    return moves.flatCollect(move -> move.getNonCrashPredecessors()).toSet();
   }
 
   /**
@@ -62,7 +60,7 @@ public class Paths {
 
   private MutableIntObjectMap<MutableList<Move>> roundMoves = new IntObjectHashMap<>(192);
 
-  public Paths() {
+  private Paths() {
   }
 
   public Paths(MutableCollection<Move> moves) {
@@ -162,40 +160,28 @@ public class Paths {
     return Paths.onlyFiltered(this, moves.select(move -> move.getTotalLen() == minLength));
   }
 
-  public void trimCrashPaths(int zzz) {
-    if (zzz >= 1) {
-      MutableCollection<Move> levelCrashs = new FastList<>(0);
-      MutableCollection<Move> levelMoves = moves;
-
-      while (!levelMoves.isEmpty()) {
-        if (!levelCrashs.isEmpty()) {
-          Map<Move, MutableSet<Move>> crashPreds = getCommonCrashPred(levelCrashs);
-          MutableLongSet validPredecessors = LongSets.mutable.empty();
-          for (Move pred : crashPreds.keySet()) {
-            Deque<MutableCollection<Move>> crashsOnPath = new LinkedList<MutableCollection<Move>>();
-            crashsOnPath.push(crashPreds.get(pred));
-            pred.trimCrashPath(crashsOnPath, zzz, zzz, validPredecessors, false, Collections.emptyList());
+  /**
+   * Changes the internal structure of the path by cutting single connections between moves and their predecessors which
+   * are not on the path to a later crash-move.
+   */
+  public void trimCrashPaths() {
+    MutableSet<Move> crashSuccesors = Sets.mutable.empty();
+    for (int i = getMinTotalLength(); i > 0; i--) {
+      MutableList<Move> crashs = getCrashsOfRound(i);
+      if (!crashs.isEmpty()) {
+        crashSuccesors.addAll(crashs);
+        for (Move crash : crashs) {
+          MutableCollection<Move> crashPreds = crash.getPreds();
+          if (crashPreds.anySatisfy(c -> c.equalsPos(crashSuccesors))) {
+            crashPreds.removeIf(c -> !c.equalsPos(crashSuccesors));
           }
         }
-
-        levelCrashs = levelMoves.flatCollect(move -> move.getCrashPredecessors()).toSet();
-        levelMoves = getNonCrashPredecessors(levelMoves);
       }
     }
   }
 
-  private Map<Move, MutableSet<Move>> getCommonCrashPred(Collection<Move> crashs) {
-    Map<Move, MutableSet<Move>> crashPreds = Maps.mutable.empty();
-    for (Move crash : crashs) {
-      for (Move pred : crash.getPreds()) {
-        if (crashPreds.containsKey(pred)) {
-          crashPreds.get(pred).add(crash);
-        } else {
-          crashPreds.put(pred, Sets.mutable.of(crash));
-        }
-      }
-    }
-    return crashPreds;
+  public MutableList<Move> getCrashsOfRound(int round) {
+    return getMovesOfRound(round + 1).flatCollect(m -> m.getCrashPredecessors());
   }
 
   public MutableList<Move> getMovesOfRound(int round) {
@@ -246,10 +232,6 @@ public class Paths {
       }
     }
     return map;
-  }
-
-  public boolean hasComment() {
-    return !comment.isEmpty();
   }
 
   public String getComment() {

@@ -49,7 +49,7 @@ public class PathFinder implements Callable<Paths> {
     Thread.currentThread().setName("PathFinder");
     Paths possiblePaths = rule.filterPossibles(new Paths(player.getNextMoves()));
     if (possiblePaths.isEmpty())
-      return new Paths();
+      return Paths.empty();
     crashDetector = new CrashDetector(rule, possiblePaths.getEndMoves());
 
     if (rule.hasNotXdFinishlineOnF1Circuit(player.getMotion())) {
@@ -66,23 +66,17 @@ public class PathFinder implements Callable<Paths> {
   }
 
   protected Paths getMinPathsForTours(Collection<Tour> tours, Paths possibles) {
-    Paths paths = new Paths();
-    int maxThreads = Integer.max(Settings.getInstance().getMaxParallelTourThreads(), 1);
-    int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors());
-    ExecutorService executorService = Executors.newFixedThreadPool(minThreads);
+    Paths paths = Paths.empty();
+    ExecutorService executorService = Executors.newFixedThreadPool(Settings.getInstance().getMaxParallelTourThreads());
     CompletionService<Paths> service = new ExecutorCompletionService<>(executorService);
     for (Tour tour : tours) {
       service.submit(travelTour(tour, possibles));
     }
 
-    executorService.shutdown();
     try {
-      if (!executorService.awaitTermination(Settings.getInstance().maxExecutionTimeMinutes(), TimeUnit.MINUTES)) {
-        executorService.shutdownNow();
-      }
+      executorWaitForShutdown(executorService);
     } catch (InterruptedException e) {
-      executorService.shutdownNow();
-      return new Paths();
+      return Paths.empty();
     }
 
     for (int i = 1; i <= tours.size(); i++) {
@@ -97,13 +91,12 @@ public class PathFinder implements Callable<Paths> {
         }
       } catch (InterruptedException | ExecutionException e) {
         logger.warning(e.getMessage());
-        return new Paths();
+        return Paths.empty();
       }
     }
 
     if (game.isCrashAllowed()) {
-      System.out.print("Game " + game.getId() + ": Begining to trim the path.");
-      paths.trimCrashPaths(game.getZzz());
+      paths.trimCrashPaths();
     }
 
     return paths.getShortestTracks();
@@ -120,9 +113,9 @@ public class PathFinder implements Callable<Paths> {
       Paths intermedPaths = possibles;
       for (MapTile cp : tour.getSequence()) {
         if (Thread.currentThread().isInterrupted())
-          return new Paths();
+          return Paths.empty();
         if (intermedPaths.isEmpty() || intermedPaths.getMinTotalLength() > minPathLength.get())
-          return new Paths();
+          return Paths.empty();
         intermedPaths = findPathToCp(intermedPaths, cp, false);
       }
       if (!intermedPaths.isEmpty()) {
@@ -169,15 +162,31 @@ public class PathFinder implements Callable<Paths> {
           Collection<Move> nextMoves = rule.filterNextMv(move);
 
           if (!nextMoves.isEmpty()) {
+            if (Thread.currentThread().isInterrupted())
+              return Paths.empty();
             queue.addAll(nextMoves);
           } else if ((queue.isEmpty() && minPathLengthToCp >= minPathLength.get()) || game.isCrashAllowed()
               || crashDetector.isCrashAhead(move)) {
+            if (Thread.currentThread().isInterrupted())
+              return Paths.empty();
             queue.addAll(move.getMovesAfterCrash(game.getZzz()));
           }
         }
       }
     }
     return shortestPaths;
+  }
+
+  private void executorWaitForShutdown(ExecutorService executorService) throws InterruptedException {
+    executorService.shutdown();
+    try {
+      if (!executorService.awaitTermination(Settings.getInstance().maxExecutionTimeMinutes(), TimeUnit.MINUTES)) {
+        executorService.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      executorService.shutdownNow();
+      throw e;
+    }
   }
 
 }

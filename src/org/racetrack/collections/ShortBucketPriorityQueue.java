@@ -20,7 +20,7 @@ public class ShortBucketPriorityQueue<E> implements Queue<E> {
   private Function<E, Short> priority = elem -> (short) elem.hashCode();
   private int indexFirst = EMPTY_QUEUE;
 
-  private transient ArrayDeque<E>[] buckets;
+  private ArrayDeque<E>[] buckets;
 
   @SuppressWarnings("unchecked")
   private ShortBucketPriorityQueue(Function<E, Short> priority) {
@@ -203,7 +203,7 @@ public class ShortBucketPriorityQueue<E> implements Queue<E> {
 
   @Override
   public String toString() {
-    return buckets.toString();
+    return size() + " [" + buckets[indexFirst].toString() + "]";
   }
 
 }

@@ -8,6 +8,7 @@ import java.util.logging.*;
 
 import org.java_websocket.client.*;
 import org.racetrack.chat.*;
+import org.racetrack.concurrent.*;
 import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.track.*;
@@ -16,8 +17,12 @@ public class BotRunner implements Runnable {
 
   private static final Logger logger = Logger.getLogger(BotRunner.class.getName());
 
-  private ExecutorService executorService = Executors.newSingleThreadExecutor();
-  private CompletionService<GameAction> moveFinder = new ExecutorCompletionService<>(executorService);
+  private BlockingQueue<Game> games = new LinkedBlockingQueue<Game>();
+
+  private ExecutorService priorityExecutor = new PriorityTaskThreadPoolExecutor(1,
+      new DistinctPriorityBlockingQueue<>());
+  private CompletionService<GameAction> moveFinder = new PriorityTaskCompletionService<GameAction>(priorityExecutor);
+
   private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
   private String userLogin;
@@ -31,9 +36,8 @@ public class BotRunner implements Runnable {
   private boolean useBetaApi;
   private ChatModule chatbot;
 
-  private BlockingQueue<Game> games = new LinkedBlockingQueue<>();
   private BlockingQueue<Chat> chatMsg = new LinkedBlockingQueue<>();
-  private Set<Integer> ignoreGames = new HashSet<Integer>();
+  private Set<Integer> skipGames = new HashSet<Integer>();
 
   public BotRunner() {
     Settings settings = Settings.getInstance();
@@ -161,7 +165,7 @@ public class BotRunner implements Runnable {
       while (true) {
         try {
           Game game = games.take();
-          if (!ignoreGames.contains(game.getId())) {
+          if (!skipGames.contains(game.getId())) {
             moveFinder.submit(new MoveChooser(game, user));
           }
         } catch (InterruptedException e) {
@@ -189,14 +193,16 @@ public class BotRunner implements Runnable {
           Game game = action.getGame();
           if (action.isNotNext()) {
             continue;
-          }
-          if (action.skipGame()) {
-            ignoreGames.add(game.getId());
-            System.out.println(game.getId() + ": Game added to skiplist.");
+          } else if (action.skipGame()) {
+            skipGames.add(game.getId());
+            System.out.println(game.getId() + " Game added to skiplist. Reason: " + action.getComment());
             continue;
-          }
-          if (action.quitGame()) {
+          } else if (action.quitGame()) {
             karo.quitGame(game.getId());
+          } else if (action.isCrash()) {
+            karo.resetAfterCrash(game.getId());
+            System.out.println(game.getId() + " Crashing");
+            games.put(game.update());
           } else {
             Move move = action.getMove();
             if (move != null) {
@@ -210,9 +216,6 @@ public class BotRunner implements Runnable {
                   karo.move(game.getId(), move);
                 }
               }
-            } else {
-              karo.resetAfterCrash(game.getId());
-              games.put(game.update());
             }
           }
 
