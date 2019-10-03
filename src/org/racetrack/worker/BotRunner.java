@@ -11,13 +11,12 @@ import org.racetrack.chat.*;
 import org.racetrack.concurrent.*;
 import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
+import org.racetrack.karoapi.KaroClient.*;
 import org.racetrack.track.*;
 
-public class BotRunner implements Runnable {
+public class BotRunner implements Runnable, GameHandler, ChatHandler {
 
   private static final Logger logger = Logger.getLogger(BotRunner.class.getName());
-
-  private BlockingQueue<Game> games = new LinkedBlockingQueue<Game>();
 
   private ExecutorService priorityExecutor = new PriorityTaskThreadPoolExecutor(1,
       new DistinctPriorityBlockingQueue<>());
@@ -36,7 +35,6 @@ public class BotRunner implements Runnable {
   private boolean useBetaApi;
   private ChatModule chatbot;
 
-  private BlockingQueue<Chat> chatMsg = new LinkedBlockingQueue<>();
   private Set<Integer> skipGames = new HashSet<Integer>();
 
   public BotRunner() {
@@ -74,7 +72,9 @@ public class BotRunner implements Runnable {
       return;
     }
 
-    games.addAll(user.getNextGames());
+    for (Game game : user.getNextGames()) {
+      processGame(game);
+    }
 
     // show bot as active in chat by updating chat-site
     scheduler.scheduleWithFixedDelay(() -> {
@@ -109,9 +109,7 @@ public class BotRunner implements Runnable {
     }, computeDelayMinutes(7, 0, 0), 24 * 60 * 60, TimeUnit.SECONDS);
 
     new Thread(websocketClient(), "WebSocketControl").start();
-    new Thread(chat(), "ChatRespond").start();
-    new Thread(queueGame(), "GameQueue").start();
-    new Thread(postCalculatedMove(), "MovePoster").start();
+    new Thread(postMove(), "MovePoster").start();
   }
 
   private Runnable websocketClient() {
@@ -120,7 +118,7 @@ public class BotRunner implements Runnable {
       while (true) {
         if (client == null || client.getConnection().isClosed()) {
           try {
-            client = new KaroWebSocketClient(user.getLogin(), games, chatMsg, secureConnection);
+            client = new KaroWebSocketClient(user.getLogin(), secureConnection, this, this);
             client.connect();
             logger.fine("WebSocket connection established.");
           } catch (URISyntaxException use) {
@@ -136,76 +134,44 @@ public class BotRunner implements Runnable {
     };
   }
 
-  private Runnable chat() {
+  private Runnable postMove() {
     return () -> {
       while (true) {
-        try {
-          Chat message = chatMsg.take();
-          if (withChat) {
-            ChatResponse answer = chatbot.respond(message);
-            if (answer.isAnswered()) {
-              if (karo.logIn()) {
-                if (answer.isGameCreated()) {
-                  karo.addGame(answer.getGame());
-                } else if (answer.isText()) {
-                  karo.chat(answer.getText());
-                }
-              }
-            }
-          }
-        } catch (InterruptedException e) {
-          return;
-        }
-      }
-    };
-  }
-
-  private Runnable queueGame() {
-    return () -> {
-      while (true) {
-        try {
-          Game game = games.take();
-          if (!skipGames.contains(game.getId())) {
-            moveFinder.submit(new MoveChooser(game, user));
-          }
-        } catch (InterruptedException e) {
-          return;
-        } catch (NullPointerException | OutOfMemoryError e) {
-          logger.severe("MoveFinder Exception: " + e.getMessage());
-        }
-      }
-    };
-  }
-
-  private Runnable postCalculatedMove() {
-    return () -> {
-      while (true) {
+        GameAction action = null;
         try {
           Future<GameAction> futureAction = moveFinder.poll(2 + Settings.getInstance().maxExecutionTimeMinutes(),
               TimeUnit.MINUTES);
-
           if (futureAction == null) {
-            games.addAll(user.getNextGames()); // retrieve new games when timeout occures
+            for (Game game : user.getNextGames()) {
+              processGame(game);
+            }
             continue;
           }
 
-          GameAction action = futureAction.get();
-          Game game = action.getGame();
-          if (action.isNotNext()) {
-            continue;
-          } else if (action.skipGame()) {
-            skipGames.add(game.getId());
-            System.out.println(game.getId() + " Game added to skiplist. Reason: " + action.getComment());
-            continue;
-          } else if (action.quitGame()) {
-            karo.quitGame(game.getId());
-          } else if (action.isCrash()) {
-            karo.resetAfterCrash(game.getId());
-            System.out.println(game.getId() + " Crashing");
-            games.put(game.update());
-          } else {
-            Move move = action.getMove();
-            if (move != null) {
+          action = futureAction.get();
+        } catch (InterruptedException e) {
+          return;
+        } catch (ExecutionException e) {
+          logger.warning(e.getMessage());
+        }
+
+        Game game = action.getGame();
+        if (action.isNotNext()) {
+          continue;
+        } else if (action.skipGame()) {
+          skipGames.add(game.getId());
+          ConsoleOutput.println(game.getId(), "Game added to skiplist. (" + action.getComment() + ")");
+          continue;
+        } else if (action.quitGame()) {
+          karo.quitGame(game.getId());
+        } else if (action.isCrash()) {
+          karo.resetAfterCrash(game.getId());
+          ConsoleOutput.println(game.getId(), "Crashing");
+          processGame(game.update());
+        } else {
+          Move move = action.getMove();
+          if (move != null) {
+            try {
               if (action.hasComment()) {
                 karo.moveWithRadio(game.getId(), move, action.getComment());
               } else {
@@ -213,17 +179,21 @@ public class BotRunner implements Runnable {
                 if (answer.isText()) {
                   karo.moveWithRadio(game.getId(), move, answer.getText());
                 } else {
-                  karo.move(game.getId(), move);
+                  if (action.isFinishingMove() && game.getActivePlayers().anySatisfy(p -> p.hasFinishedFirst())) {
+                    karo.moveWithRadio(game.getId(), move, Emoticon.GOLD.toString());
+                  } else {
+                    karo.move(game.getId(), move);
+                  }
                 }
+              }
+            } catch (PostingMoveFailedException e) {
+              if (game.update().isNextPlayer(user.asPlayer())) {
+                ConsoleOutput.println(game.getId(), e.getMessage());
               }
             }
           }
-
-        } catch (InterruptedException e) {
-          return;
-        } catch (ExecutionException e) {
-          logger.warning(e.getMessage());
         }
+
       }
     };
 
@@ -239,6 +209,29 @@ public class BotRunner implements Runnable {
 
     Duration duration = Duration.between(zonedNow, zonedNextTarget);
     return duration.getSeconds() / 60;
+  }
+
+  @Override
+  public void processGame(Game game) {
+    if (game != null && !skipGames.contains(game.getId())) {
+      moveFinder.submit(new MoveChooser(game, user));
+    }
+  }
+
+  @Override
+  public void respondToMessage(Chat message) {
+    if (withChat) {
+      ChatResponse answer = chatbot.respond(message);
+      if (answer.isAnswered()) {
+        if (karo.logIn()) {
+          if (answer.isGameCreated()) {
+            karo.addGame(answer.getGame());
+          } else if (answer.isText()) {
+            karo.chat(answer.getText());
+          }
+        }
+      }
+    }
   }
 
 }

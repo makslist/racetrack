@@ -5,6 +5,7 @@ import java.util.concurrent.locks.*;
 
 import org.eclipse.collections.api.block.predicate.*;
 import org.eclipse.collections.api.collection.*;
+import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.api.map.primitive.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.map.mutable.primitive.*;
@@ -77,6 +78,10 @@ public class MapRule {
 
   public Predicate<Move> filterMap() {
     return mapRule;
+  }
+
+  public MutableList<Move> filterMoves(MutableList<Move> moves) {
+    return moves.select(mapRule);
   }
 
   public MutableCollection<Move> filterNextMvDist(Move move) {

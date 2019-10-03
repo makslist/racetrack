@@ -10,6 +10,7 @@ public class GameAction {
   private boolean notNext;
   private boolean crash;
   private Move move;
+  private boolean finishingMove;
   private String comment;
 
   public static GameAction quitGame(Game game) {
@@ -41,10 +42,11 @@ public class GameAction {
     this.game = game;
   }
 
-  public GameAction(Game game, Move move, String comment) {
+  public GameAction(Game game, Move move, boolean finishingMove, String comment) {
     this.game = game;
-    this.comment = comment;
     this.move = move;
+    this.finishingMove = finishingMove;
+    this.comment = comment;
   }
 
   public Game getGame() {
@@ -69,6 +71,10 @@ public class GameAction {
 
   public Move getMove() {
     return move;
+  }
+
+  public boolean isFinishingMove() {
+    return finishingMove;
   }
 
   public boolean hasComment() {

@@ -11,6 +11,7 @@ import org.eclipse.collections.impl.list.mutable.*;
 import org.eclipse.collections.impl.map.mutable.ConcurrentHashMap;
 import org.racetrack.karoapi.*;
 import org.racetrack.track.Strategy.*;
+import org.racetrack.worker.*;
 
 public class GTS implements Callable<GameAction> {
 
@@ -130,7 +131,7 @@ public class GTS implements Callable<GameAction> {
   public GameAction call() {
     Player player = game.getNext();
 
-    FastList<Player> players = new FastList<>(paths.keySet());
+    MutableList<Player> players = new FastList<>(paths.keySet());
     for (Player pl : players) {
       Paths path = paths.get(pl);
       int len = !path.isEmpty() ? path.getMinTotalLength() : Integer.MIN_VALUE;
@@ -146,8 +147,9 @@ public class GTS implements Callable<GameAction> {
 
     Move bestMove = play(player, playersNotYetMoved, currentState, round);
 
-    System.out.println(game.getId() + " Result: " + bestMove + " with strategy : " + strategy);
-    return new GameAction(game, bestMove, paths.get(player).getComment());
+    ConsoleOutput.println(game.getId(), "Result: " + bestMove + " with strategy : " + strategy);
+    Paths playerPath = paths.get(player);
+    return new GameAction(game, bestMove, playerPath.getMinLength() == 1, playerPath.getComment());
   }
 
   private int calcMaxNDepth(MutableList<Player> actualPlayers, int maxRound) {
@@ -166,7 +168,7 @@ public class GTS implements Callable<GameAction> {
     Paths path = paths.get(player);
     MutableMap<Evaluation, Move> moveRatings = Maps.mutable.empty();
 
-    System.out.print(game.getId() + " Ratings:");
+    ConsoleOutput.print(game.getId(), "Ratings:");
     for (Move move : path.getMovesOfRound(round).reject(m -> state.isTaken(m))) {
       Evaluation eval = play(playersToMove.reject(p -> p.equals(player)), state.with(player, move), round, null);
       System.out.print(" " + move + " " + eval);
@@ -175,7 +177,7 @@ public class GTS implements Callable<GameAction> {
     }
     System.out.println("");
 
-    FastList<Evaluation> evals = new FastList<>(moveRatings.keySet());
+    MutableList<Evaluation> evals = new FastList<>(moveRatings.keySet());
     if (evals.isEmpty())
       return null;
     evals.sortThis((e1, e2) -> path.getSuccessors(round + 1, moveRatings.get(e2)).size()

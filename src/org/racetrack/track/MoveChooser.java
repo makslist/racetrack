@@ -12,6 +12,7 @@ import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.rules.*;
 import org.racetrack.rules.special.*;
+import org.racetrack.worker.*;
 
 public class MoveChooser extends ComparableTask<GameAction> {
 
@@ -37,8 +38,15 @@ public class MoveChooser extends ComparableTask<GameAction> {
     if (quitGame())
       return GameAction.quitGame(game);
 
-    if (player.getNextMoves().isEmpty())
+    GameRule rule = RuleFactory.getInstance(game);
+    MutableList<Move> possibles = rule.filterMoves(player.getPossibles());
+    if (player.getNextMoves().isEmpty() || possibles.isEmpty())
       return GameAction.crash(game);
+
+    if (possibles.size() == 1) {
+      ConsoleOutput.println(game.getId(), "Result: " + possibles.getFirst() + " with only one possible.");
+      return new GameAction(game, possibles.getFirst(), false, "");
+    }
 
     long duration = System.currentTimeMillis();
     int round = game.getCurrentRound();
@@ -46,9 +54,7 @@ public class MoveChooser extends ComparableTask<GameAction> {
     MutableList<Player> actualPlayers = game.isStarted() ? game.getNearestPlayers(player, 4, 4)
         : (game.getMap().isCpClustered(MapTile.START) && game.getActivePlayersCount() <= 5 ? game.getActivePlayers()
             : Lists.mutable.with(player));
-    System.out.println(game.getId() + " " + game.getName() + " " + actualPlayers);
-
-    GameRule rule = RuleFactory.getInstance(game);
+    ConsoleOutput.println(game.getId(), game.getName() + " " + actualPlayers);
 
     MutableMap<Player, Future<Paths>> futurePaths = Maps.mutable.empty();
     ExecutorService executor = Executors.newFixedThreadPool(Settings.getInstance().getMaxParallelTourThreads());
@@ -84,20 +90,19 @@ public class MoveChooser extends ComparableTask<GameAction> {
       return GameAction.skipGame(game, "Path for player " + player.getName() + " is empty");
 
     MutableList<Move> playerMoves = playerPaths.getMovesOfRound(round);
-
     if (playerMoves.size() == 1) {
-      System.out.println(game.getId() + " Result: " + playerMoves.getFirst() + " with only one move. Duration "
+      ConsoleOutput.println(game.getId(), "Result: " + playerMoves.getFirst() + " with only one move. Duration "
           + ((System.currentTimeMillis() - duration) / 1000) + "s");
-      return new GameAction(game, playerMoves.getFirst(), playerPaths.getComment());
+      return new GameAction(game, playerMoves.getFirst(), playerPaths.getMinLength() == 1, playerPaths.getComment());
     }
 
     if (actualPlayers.size() == 1) {
       try {
         Move maxSucc = playerMoves.max((o1, o2) -> playerPaths.getSuccessors(round + 1, o1).size()
             - playerPaths.getSuccessors(round + 1, o2).size());
-        System.out.println(game.getId() + " Result: " + maxSucc + " with only one player. Duration "
+        ConsoleOutput.println(game.getId(), "Result: " + maxSucc + " with only one player. Duration "
             + ((System.currentTimeMillis() - duration) / 1000) + "s");
-        return new GameAction(game, maxSucc, playerPaths.getComment());
+        return new GameAction(game, maxSucc, playerPaths.getMinLength() == 1, playerPaths.getComment());
       } catch (NoSuchElementException nsee) {
         return GameAction.skipGame(game, "No element found when getting max of playermoves");
       }
@@ -116,7 +121,7 @@ public class MoveChooser extends ComparableTask<GameAction> {
     } catch (InterruptedException | ExecutionException ee) {
       return GameAction.skipGame(game, "Exception when getting game tree search result");
     } finally {
-      System.out.println(game.getId() + " " + ((System.currentTimeMillis() - duration) / 1000) + "s to calculate.");
+      ConsoleOutput.println(game.getId(), ((System.currentTimeMillis() - duration) / 1000) + "s to calculate.");
     }
   }
 
@@ -166,11 +171,21 @@ public class MoveChooser extends ComparableTask<GameAction> {
 
     MoveChooser mc2 = (MoveChooser) o;
     int crash = (game.isCrashAllowed() ? 1 : 0) - (mc2.game.isCrashAllowed() ? 1 : 0);
+    if (crash != 0)
+      return crash;
+
+    int zzz = game.getZzz() - mc2.game.getZzz();
+    if (zzz != 0)
+      return zzz;
+
+    int missingCps = player.getMissingCps().size() - mc2.player.getMissingCps().size();
+    if (missingCps != 0)
+      return missingCps;
 
     int mapSize1 = game.getMap().getCols() * game.getMap().getRows();
     int mapSize2 = mc2.game.getMap().getCols() * mc2.game.getMap().getRows();
 
-    return crash != 0 ? crash : (mapSize1 - mapSize2);
+    return mapSize1 - mapSize2;
   }
 
 }
