@@ -36,6 +36,38 @@ public class Strategy {
       return new StringBuilder().append("[").append(sb).append("]").toString();
     }
 
+    private int getPosition(int player) {
+      float playerRating = ratings[player];
+      int position = 1;
+      for (int i = 0; i < ratings.length; i++) {
+        if (player != i && ratings[i] > playerRating) {
+          position++;
+        }
+      }
+      return position;
+    }
+
+    private float getLead(int player) {
+      float sucRating = 0;
+      for (int i = 0; i < ratings.length; i++) {
+        if (player != i && ratings[i] > sucRating) {
+          sucRating = ratings[i];
+        }
+      }
+      return sucRating - ratings[player];
+    }
+
+    private float getBacklog(int player) {
+      float playerRating = ratings[player];
+      float predRating = 0;
+      for (int i = 0; i < ratings.length; i++) {
+        if (player != i && ratings[i] > playerRating && ratings[i] < predRating) {
+          predRating = ratings[i];
+        }
+      }
+      return predRating - playerRating;
+    }
+
   }
 
   private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("##0.00");
@@ -81,17 +113,18 @@ public class Strategy {
 
   private Comparator<Evaluation> comp(int player) {
     return (o1, o2) -> {
-      float maxOp1 = Float.NEGATIVE_INFINITY, maxOp2 = Float.NEGATIVE_INFINITY;
-      for (int i = 0; i < players.size(); i++) {
-        if (player != i) {
-          maxOp1 = Math.max(maxOp1, o1.ratings[i]);
-          maxOp2 = Math.max(maxOp2, o2.ratings[i]);
-        }
-      }
+      int pos1 = o1.getPosition(player);
+      int pos2 = o2.getPosition(player);
+      if (pos1 - pos2 != 0)
+        return (pos1 - pos2) < 0 ? 1 : -1;
 
-      float diff1 = o1.ratings[player] - maxOp1;
-      float diff2 = o2.ratings[player] - maxOp2;
-      return diff1 == diff2 ? 0 : (diff1 > diff2 ? 1 : -1);
+      if (pos1 == 1) { // && pos2 == 1
+        float leadDiff = o1.getLead(player) - o2.getLead(player);
+        return leadDiff == 0 ? 0 : (leadDiff < 0 ? 1 : -1);
+      } else {
+        float predDiff = o1.getBacklog(player) - o2.getBacklog(player);
+        return predDiff == 0 ? 0 : (predDiff < 0 ? 1 : -1);
+      }
     };
   }
 
@@ -138,10 +171,9 @@ public class Strategy {
     return eval;
   }
 
-  public Evaluation block(Evaluation eval, Player player, int round) {
+  public Evaluation block(Evaluation eval, Player player, int round, int zzz) {
     int blockInRoundsTillFinish = gamelength - round;
-    eval.ratings[players.get(player)] = blockInRoundsTillFinish <= 0 ? blockInRoundsTillFinish
-        : (float) -Math.max(Math.sqrt(blockInRoundsTillFinish), 3);
+    eval.ratings[players.get(player)] = blockInRoundsTillFinish <= 0 ? blockInRoundsTillFinish : (zzz + 1) * 1.5f;
     return eval;
   }
 

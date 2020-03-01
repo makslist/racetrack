@@ -51,8 +51,8 @@ public class GamePanel extends JLayeredPane {
     return mapPanel != null ? mapPanel.getCircuitChangeListener() : null;
   }
 
-  public KeyListener getMaxToursKeyListener() {
-    return mapPanel != null ? mapPanel.getMaxToursKeyListener() : null;
+  public KeyListener getTourLengthMarginKeyListener() {
+    return mapPanel != null ? mapPanel.getTourLengthMarginKeyListener() : null;
   }
 
   public ChangeListener getQuitChangeListener() {

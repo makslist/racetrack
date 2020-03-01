@@ -46,7 +46,7 @@ public class TrackPanel extends JPanel {
         Font font = new Font(g2d.getFont().getFontName(), Font.PLAIN, 9);
         g2d.setFont(font);
         g2d.setColor(Color.BLACK);
-        g2d.drawString(Short.toString(move.getTotalLen()), (x2 + x1) / 2, (y2 + y1) / 2);
+        g2d.drawString(Integer.toString(move.getTotalLen()), (x2 + x1) / 2, (y2 + y1) / 2);
       }
     }
   }

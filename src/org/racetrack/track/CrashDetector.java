@@ -41,22 +41,22 @@ public class CrashDetector {
   public boolean isCrashAhead() {
     if (crashAhead == null) {
       for (Move move : moves) {
-        if (isPathSave(move, depth)) {
+        if (isPathSafe(move, depth)) {
           crashAhead = false;
           return false;
         }
       }
       crashAhead = true;
     }
-    return crashAhead;
+    return crashAhead.booleanValue();
   }
 
-  private boolean isPathSave(Move move, int d) {
+  private boolean isPathSafe(Move move, int d) {
     if (d == 0)
       return true;
     else {
       for (Move next : move.getNext().select(rule.filterMap())) {
-        if (isPathSave(next, d - 1))
+        if (isPathSafe(next, d - 1))
           return true;
       }
       return false;

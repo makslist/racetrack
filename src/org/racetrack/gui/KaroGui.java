@@ -97,7 +97,7 @@ public class KaroGui extends JFrame {
     commandPanel.addReloadButtonActionListener(getReloadGameListListener());
     commandPanel.addSaveButtonActionListener(gamePanel.getMapSettingsSaveListener());
     commandPanel.addCircuitBoxChangeListener(gamePanel.getCircuitChangeListener());
-    commandPanel.addMaxToursFieldChangeListener(gamePanel.getMaxToursKeyListener());
+    commandPanel.addMaxToursFieldChangeListener(gamePanel.getTourLengthMarginKeyListener());
     commandPanel.addQuitBoxChangeListener(gamePanel.getQuitChangeListener());
     commandPanel.addResolutionSliderChangeListener(gamePanel.getResolutionListener());
 

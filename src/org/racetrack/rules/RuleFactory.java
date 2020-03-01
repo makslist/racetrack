@@ -61,6 +61,8 @@ public class RuleFactory {
       return new SpeedLimitRule(game);
     case X_OR_Y_0:
       return new XorY0Rule(game);
+    case CCC:
+      return new CraZZZyRule(game);
     default:
       return new GameRule(game);
     }

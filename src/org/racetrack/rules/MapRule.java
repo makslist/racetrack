@@ -23,8 +23,7 @@ public class MapRule {
 
   protected KaroMap map;
 
-  protected Predicate<Move> mapRule = move -> move.isMoving()
-      && !isOffTrack(move.getX(), move.getY(), move.getXv(), move.getYv());
+  protected Predicate<Move> mapRule = move -> move.isMoving() && !isOffTrack(move);
 
   private Boolean isMapCircuitCached;
 
@@ -37,8 +36,8 @@ public class MapRule {
     finishAngle = getAngleForFinishVector();
   }
 
-  private boolean isOffTrack(int x, int y, int xv, int yv) {
-    int key = Move.getMoveHash(x, y, xv, yv);
+  private boolean isOffTrack(Move move) {
+    int key = move.hashCode();
     SeqLock.SeqReadLock lock = (SeqLock.SeqReadLock) offTrackLock.readLock();
     try {
       while (true) {
@@ -48,7 +47,8 @@ public class MapRule {
           return isOffTrack;
       }
     } catch (IllegalStateException ise) {
-      boolean isOffTrack = !map.contains(x, y) || isDrivenAcross(x, y, xv, yv, MapTile.OFF_TRACK, false);
+      boolean isOffTrack = !map.contains(move.getX(), move.getY())
+          || isDrivenAcross(move.getX(), move.getY(), move.getXv(), move.getYv(), MapTile.OFF_TRACK, false);
       offTrackLock.writeLock().lock();
       offTrack.put(key, isOffTrack);
       offTrackLock.writeLock().unlock();
@@ -108,16 +108,6 @@ public class MapRule {
     return hasXdCp((LogMove) move.getPred(), cp);
   }
 
-  public boolean hasXdCp(Paths paths, MapTile tile) {
-    MutableCollection<Move> allTracks = paths.getEndMoves();
-    while (!allTracks.isEmpty()) {
-      if (allTracks.anySatisfy(move -> hasXdCp(move, tile)))
-        return true;
-      allTracks = allTracks.flatCollect(move -> move.getPreds()).toSet();
-    }
-    return false;
-  }
-
   protected boolean hasXdFinishline(Move move) {
     if (move == null)
       return false;
@@ -139,15 +129,16 @@ public class MapRule {
    *
    * @param withCpRule
    *          The Karopapier website only recognized a checkpoint as passed when driven over as last MapTile by the
-   *          vector. When checking for crossing e.g. grass this behavior is undesired and the cpRule should be disabled
+   *          move. When checking for crossing e.g. grass this behavior is undesired and the cpRule should be disabled
    */
   private boolean isDrivenAcross(int x, int y, int xv, int yv, Collection<MapTile> tiles, boolean withCpRule) {
-    int x0 = x - xv;
-    int y0 = y - yv;
+    int x1 = x - xv;
+    int y1 = y - yv;
+    int x0 = x;
+    int y0 = y;
 
-    int incx = (int) Math.signum(x - x0);
-    int incy = (int) Math.signum(y - y0);
-
+    int incx = (int) Math.signum(-xv);
+    int incy = (int) Math.signum(-yv);
     int dx = Math.abs(xv);
     int dy = Math.abs(yv);
 
@@ -176,18 +167,16 @@ public class MapRule {
     float err = (el - es) / 2f;
     /*
      * the signum of err indicates on which side of the vector the center of the last considered box is located. if
-     * there is a deviation in the * "slower" direction, err is positive, and we take a step in the "faster"
-     * direction.if there is a deviation in the "fast" direction, err is negative, and we take a step in the "slower"
-     * direction.
+     * there is a deviation in the "slower" direction, err is positive, and we take a step in the "faster" direction.if
+     * there is a deviation in the "faster" direction, err is negative, and we take a step in the "slower" direction.
      */
     while (true) {
       MapTile mapTile = map.getTileOf(x0, y0);
       if (tiles.contains(mapTile))
         return true;
-      else if (withCpRule && mapTile.isCpOrFinish())
+      if (withCpRule && mapTile.isCpOrFinish())
         return false;
-
-      if (x0 == x && y0 == y)
+      if (x0 == x1 && y0 == y1)
         return false;
 
       if (err < 0) { // move in slow direction

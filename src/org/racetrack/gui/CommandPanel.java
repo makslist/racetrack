@@ -15,7 +15,7 @@ public class CommandPanel extends JPanel {
   private JButton reloadButton;
   private JButton navigateButton;
   private JCheckBox circuitBox;
-  private JTextField maxToursField;
+  private JTextField tourLengthMarginField;
   private JCheckBox quitButton;
   private JButton saveButton;
   private JSlider resolutionSlider;
@@ -30,7 +30,7 @@ public class CommandPanel extends JPanel {
     reloadButton = new JButton("Reload");
     navigateButton = new JButton("Navigate");
     circuitBox = new JCheckBox("Circuit");
-    maxToursField = new JTextField(3);
+    tourLengthMarginField = new JTextField(3);
     quitButton = new JCheckBox("Instant Quit");
     saveButton = new JButton("Save");
 
@@ -43,8 +43,8 @@ public class CommandPanel extends JPanel {
     add(reloadButton);
     add(navigateButton);
     add(circuitBox);
-    add(maxToursField);
-    add(new JLabel("Max tours"));
+    add(tourLengthMarginField);
+    add(new JLabel("Tour length margin"));
     add(quitButton);
     add(saveButton);
     add(resolutionSlider);
@@ -75,9 +75,9 @@ public class CommandPanel extends JPanel {
 
   public void addMaxToursFieldChangeListener(KeyListener l) {
     if (map != null) {
-      maxToursField.setText(String.valueOf(map.getMaxTours()));
+      tourLengthMarginField.setText(String.valueOf(map.getTourLengthMargin()));
     }
-    maxToursField.addKeyListener(l);
+    tourLengthMarginField.addKeyListener(l);
   }
 
   public void addQuitBoxChangeListener(ChangeListener l) {

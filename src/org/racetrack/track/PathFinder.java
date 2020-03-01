@@ -6,20 +6,24 @@ import java.util.concurrent.atomic.*;
 import java.util.logging.*;
 
 import org.eclipse.collections.api.block.function.*;
-import org.eclipse.collections.api.list.*;
+import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.map.primitive.*;
 import org.eclipse.collections.impl.map.mutable.primitive.*;
 import org.racetrack.collections.*;
 import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.rules.*;
+import org.racetrack.track.TSP.*;
+import org.racetrack.worker.*;
 
 public class PathFinder implements Callable<Paths> {
 
+  private static final int MAX_MOVE_THRESHOLD = 5;
+  private static final int MAX_MOVE_LIMIT = 256;
+
   private static final Logger logger = Logger.getLogger(PathFinder.class.toString());
 
-  private static final int MAX_MOVE_TRESHOLD = 13;
-  private static final int MAX_MOVE_LIMIT = 256;
+  private boolean withMultiCrash = Settings.getInstance().withMultiCrash();
 
   private Game game;
   private Player player;
@@ -28,6 +32,8 @@ public class PathFinder implements Callable<Paths> {
   private CrashDetector crashDetector;
   private TSP tsp;
 
+  private AtomicBoolean isCanceled;
+
   private AtomicInteger minPathLength = new AtomicInteger(MAX_MOVE_LIMIT);
 
   public PathFinder(Game game, Player player) {
@@ -35,13 +41,15 @@ public class PathFinder implements Callable<Paths> {
     this.player = player;
     rule = RuleFactory.getInstance(game);
     tsp = new TSP(game, rule);
+    isCanceled = new AtomicBoolean(false);
   }
 
-  public PathFinder(Game game, Player player, GameRule rule, TSP tsp) {
+  public PathFinder(Game game, Player player, GameRule rule, TSP tsp, AtomicBoolean isCanceled) {
     this.game = game;
     this.player = game.getPlayer(player.getId());
     this.rule = rule;
     this.tsp = tsp;
+    this.isCanceled = isCanceled;
   }
 
   @Override
@@ -53,98 +61,73 @@ public class PathFinder implements Callable<Paths> {
     crashDetector = new CrashDetector(rule, possiblePaths.getEndMoves());
 
     if (rule.hasNotXdFinishlineOnF1Circuit(player.getMotion())) {
-      possiblePaths = findPathToCp(possiblePaths, MapTile.FINISH, true);
+      possiblePaths = breadthFirstSearch(possiblePaths, MapTile.FINISH, false);
     }
 
-    MutableList<Tour> tours = game.withCps() ? tsp.solve(possiblePaths.getEndMoves(), player.getMissingCps())
-        : Tour.SINGLE_FINISH_TOUR;
-    if (game.getMap().getSetting().getMaxTours() > 0) {
-      tours = tours.take(game.getMap().getSetting().getMaxTours());
-    }
+    MutableCollection<MapTile> missingCps = player.getMissingCps();
+    TourStopover tours = tsp.solve(possiblePaths.getEndMoves(), missingCps);
+    ConsoleOutput.println(game.getId(), player.getName() + " travels " + tours.size() + " tour(s)."
+        + (missingCps.isEmpty() ? "" : " Missing CPs: " + missingCps));
 
-    return getMinPathsForTours(tours, possiblePaths);
+    return travelTours(possiblePaths, tours);
   }
 
-  protected Paths getMinPathsForTours(Collection<Tour> tours, Paths possibles) {
-    Paths paths = Paths.empty();
-    ExecutorService executorService = Executors.newFixedThreadPool(Settings.getInstance().getMaxParallelTourThreads());
-    CompletionService<Paths> service = new ExecutorCompletionService<>(executorService);
-    for (Tour tour : tours) {
-      service.submit(travelTour(tour, possibles));
-    }
-
-    try {
-      executorWaitForShutdown(executorService);
-    } catch (InterruptedException e) {
+  private Paths travelTours(Paths possibles, TourStopover stopOver) {
+    if (isCanceled.get())
       return Paths.empty();
+
+    if (possibles.getMinLength() >= minPathLength.get())
+      return Paths.empty();
+
+    if (stopOver.getCp().isFinish()) {
+      Paths findPathToCp = breadthFirstSearch(possibles, stopOver.getCp(), true);
+      int totalLength = findPathToCp.getMinTotalLength();
+      // if (findPathToCp.getMinLength() != 0) {
+      ConsoleOutput.println(game.getId(), stopOver + ":" + findPathToCp.getMinLength());
+      // }
+      minPathLength.updateAndGet(x -> totalLength < x ? totalLength : x);
+      return findPathToCp;
     }
 
-    for (int i = 1; i <= tours.size(); i++) {
-      try {
-        Future<Paths> futurePath = service.poll();
-        if (futurePath != null) {
-          Paths travel = futurePath.get();
-          int travelLength = travel.getMinTotalLength();
-          if (travelLength <= minPathLength.get()) {
-            paths.merge(travel);
+    final Paths toCp = stopOver.getCp().isCp() ? breadthFirstSearch(possibles, stopOver.getCp(), true) : possibles;
+    Paths paths = Paths.empty();
+    @SuppressWarnings("serial")
+    Collection<RecursiveTask<Paths>> results = ForkJoinTask
+        .invokeAll(stopOver.getNext().collect(nextStop -> new RecursiveTask<Paths>() {
+          @Override
+          protected Paths compute() {
+            return travelTours(toCp, nextStop);
           }
-        }
-      } catch (InterruptedException | ExecutionException e) {
-        logger.warning(e.getMessage());
-        return Paths.empty();
+        }));
+    results.forEach(p -> {
+      try {
+        paths.merge(p.get());
+      } catch (InterruptedException e) {
+      } catch (ExecutionException e) {
+        logger.severe(e.getMessage());
+        e.printStackTrace();
       }
-    }
-
-    if (game.isCrashAllowed()) {
-      paths.trimCrashPaths();
-    }
-
-    return paths.getShortestTracks();
+    });
+    return paths;
   }
 
-  /**
-   * Travels a tour consisting of a series of checkpoints one by one in the defined order.
-   *
-   * @return the paths with minimal length, traveling all checkpoint ending with finish
-   */
-  protected Callable<Paths> travelTour(Tour tour, Paths possibles) {
-    return () -> {
-      Thread.currentThread().setName("PathFinderTravelTour");
-      Paths intermedPaths = possibles;
-      for (MapTile cp : tour.getSequence()) {
-        if (Thread.currentThread().isInterrupted())
-          return Paths.empty();
-        if (intermedPaths.isEmpty() || intermedPaths.getMinTotalLength() > minPathLength.get())
-          return Paths.empty();
-        intermedPaths = findPathToCp(intermedPaths, cp, false);
-      }
-      if (!intermedPaths.isEmpty()) {
-        int minTotalLength = intermedPaths.getMinTotalLength();
-        minPathLength.getAndUpdate(x -> {
-          return x > minTotalLength ? minTotalLength : x;
-        });
-      }
-      return intermedPaths;
-    };
-  }
-
-  protected Paths findPathToCp(Paths possibles, MapTile cp, boolean crossF1Finish) {
-    MutableIntObjectMap<Move> visitedMoves = new IntObjectHashMap<>(2 << 16);
-    Paths filtered = rule.filterPossibles(possibles);
+  protected Paths breadthFirstSearch(Paths starts, MapTile toCp, boolean crossedStartLine) {
+    int overshot = getFindCpOvershot(toCp, crossedStartLine);
+    MutableIntObjectMap<Move> visitedMoves = new IntObjectHashMap<>(2 << 18);
+    Paths filtered = rule.filterPossibles(starts);
     Queue<Move> queue = ShortBucketPriorityQueue.of(filtered.getEndMoves(),
-        (Function<Move, Short>) move -> move.getTotalLen());
+        (Function<Move, Short>) move -> (short) move.getTotalLen());
     boolean crossedCP = false;
     int minPathLengthToCp = minPathLength.get(); // initialize with global known minimum
 
     Paths shortestPaths = Paths.getCopy(filtered);
     while (!queue.isEmpty()) {
       Move move = queue.poll();
-      int pathLength = move.getPathLen();
-      if (pathLength > minPathLengthToCp + (cp.isFinish() && !crossF1Finish ? 0 : MAX_MOVE_TRESHOLD))
+      if (move.getPathLen() > minPathLengthToCp + overshot || move.getPathLen() > minPathLength.get())
         return shortestPaths;
 
-      Move visitedMove = visitedMoves.get(move.hashCode());
-      if (visitedMove != null) {
+      Move visitedMove;
+      if ((visitedMove = visitedMoves.get(move.hashCode())) != null) {
         visitedMove.merge(move);
 
       } else {
@@ -152,41 +135,29 @@ public class PathFinder implements Callable<Paths> {
 
         if (rule.hasForbidXdFinishline(move)) {
           continue;
-        } else if (rule.hasXdCp(move, cp)) {
-          shortestPaths.add(move);
-          if (!crossedCP) {
-            crossedCP = true;
-            minPathLengthToCp = pathLength;
-          }
-        } else {
-          Collection<Move> nextMoves = rule.filterNextMv(move);
-
-          if (!nextMoves.isEmpty()) {
-            if (Thread.currentThread().isInterrupted())
-              return Paths.empty();
-            queue.addAll(nextMoves);
-          } else if ((queue.isEmpty() && minPathLengthToCp >= minPathLength.get()) || game.isCrashAllowed()
-              || crashDetector.isCrashAhead(move)) {
-            if (Thread.currentThread().isInterrupted())
-              return Paths.empty();
-            queue.addAll(move.getMovesAfterCrash(game.getZzz()));
-          }
+        } else if (rule.hasXdCp(move, toCp) && shortestPaths.add(move) && (!crossedCP && (crossedCP ^= true))) {
+          minPathLengthToCp = move.getPathLen();
+        } else if (!queue.addAll(rule.filterNextMv(move))
+            && ((queue.isEmpty() && minPathLengthToCp >= minPathLength.get()) || game.isCrashAllowed()
+                || crashDetector.isCrashAhead(move))) {
+          queue.addAll(move.getMovesAfterCrash(game.getZzz(), withMultiCrash));
         }
       }
     }
     return shortestPaths;
   }
 
-  private void executorWaitForShutdown(ExecutorService executorService) throws InterruptedException {
-    executorService.shutdown();
-    try {
-      if (!executorService.awaitTermination(Settings.getInstance().maxExecutionTimeMinutes(), TimeUnit.MINUTES)) {
-        executorService.shutdownNow();
+  private int getFindCpOvershot(MapTile toCp, boolean crossedStartLine) {
+    if (!(toCp.isFinish() && crossedStartLine)) {
+      int overshot = MAX_MOVE_THRESHOLD;
+      if (!game.getMap().isCpClustered(toCp)) {
+        overshot += 10;
+      } else {
+        overshot += game.getMap().getSetting().getFindCpSafetyMargin();
       }
-    } catch (InterruptedException e) {
-      executorService.shutdownNow();
-      throw e;
+      return overshot;
     }
+    return 0;
   }
 
 }

@@ -7,7 +7,7 @@ public class Settings {
 
   public enum Property {
 
-    maxParallelTourThreads, user, password, secureConnection, withChat, withNewGames, useBetaApi, maxExecutionTimeMinutes
+    maxParallelTourThreads, user, password, secureConnection, withChat, withNewGames, useBetaApi, maxExecutionTimeMinutes, withMultiCrash
 
   }
 
@@ -70,6 +70,11 @@ public class Settings {
   public boolean useSecureConnection() {
     String secureString = get(Property.secureConnection);
     return secureString != null ? Boolean.valueOf(secureString) : true;
+  }
+
+  public boolean withMultiCrash() {
+    String multiCrashString = get(Property.withMultiCrash);
+    return multiCrashString != null ? Boolean.valueOf(multiCrashString) : false;
   }
 
   public boolean activateChatbot() {

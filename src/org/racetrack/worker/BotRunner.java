@@ -84,16 +84,16 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
     }, 5, 55, TimeUnit.SECONDS);
 
     scheduler.scheduleAtFixedRate(() -> {
+      System.out.println("checking for karokids.");
       if (withChat) {
-        List<User> karokids = User.getKaroKids();
-        for (User kid : karokids) {
+        for (User kid : User.getKaroKids()) {
           ChatResponse congratulation = chatbot.contratulate(kid, "wuensche karotag");
           if (congratulation.isAnswered()) {
             karo.chat(congratulation.getText());
           }
         }
       }
-    }, computeDelayMinutes(6, 30, 0), 24 * 60 * 60, TimeUnit.SECONDS);
+    }, computeDelayMinutes(6, 30), 24 * 60L, TimeUnit.MINUTES);
 
     // creates games every day
     scheduler.scheduleAtFixedRate(() -> {
@@ -106,7 +106,16 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
         Game karolenderGame = Game.newRandom(title, userLogin, false);
         karo.addGame(karolenderGame);
       }
-    }, computeDelayMinutes(7, 0, 0), 24 * 60 * 60, TimeUnit.SECONDS);
+    }, computeDelayMinutes(7, 0), 24 * 60L, TimeUnit.MINUTES);
+
+    scheduler.scheduleAtFixedRate(() -> {
+      List<Integer> games = new ArrayList<Integer>(skipGames);
+      skipGames.clear();
+      for (Integer gameId : games) {
+        moveFinder
+            .submit(new MoveChooser(Game.get(gameId), user, Settings.getInstance().maxExecutionTimeMinutes() * 4));
+      }
+    }, computeDelayMinutes(0, 30), 24 * 60L, TimeUnit.MINUTES);
 
     new Thread(websocketClient(), "WebSocketControl").start();
     new Thread(postMove(), "MovePoster").start();
@@ -166,7 +175,6 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
           karo.quitGame(game.getId());
         } else if (action.isCrash()) {
           karo.resetAfterCrash(game.getId());
-          ConsoleOutput.println(game.getId(), "Crashing");
           processGame(game.update());
         } else {
           Move move = action.getMove();
@@ -179,7 +187,7 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
                 if (answer.isText()) {
                   karo.moveWithRadio(game.getId(), move, answer.getText());
                 } else {
-                  if (action.isFinishingMove() && game.getActivePlayers().anySatisfy(p -> p.hasFinishedFirst())) {
+                  if (action.isFinishingMove() && game.getFinishedPlayer().isEmpty()) {
                     karo.moveWithRadio(game.getId(), move, Emoticon.GOLD.toString());
                   } else {
                     karo.move(game.getId(), move);
@@ -199,10 +207,10 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
 
   }
 
-  protected long computeDelayMinutes(int targetHour, int targetMin, int targetSec) {
+  protected long computeDelayMinutes(int targetHour, int targetMin) {
     LocalDateTime localNow = LocalDateTime.now(ZoneId.of("CET"));
     ZonedDateTime zonedNow = ZonedDateTime.of(localNow, ZoneId.of("CET"));
-    ZonedDateTime zonedNextTarget = zonedNow.withHour(targetHour).withMinute(targetMin).withSecond(targetSec);
+    ZonedDateTime zonedNextTarget = zonedNow.withHour(targetHour).withMinute(targetMin).withSecond(0);
     if (zonedNow.isAfter(zonedNextTarget)) {
       zonedNextTarget = zonedNextTarget.plusDays(1);
     }
@@ -214,7 +222,7 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
   @Override
   public void processGame(Game game) {
     if (game != null && !skipGames.contains(game.getId())) {
-      moveFinder.submit(new MoveChooser(game, user));
+      moveFinder.submit(new MoveChooser(game, user, Settings.getInstance().maxExecutionTimeMinutes()));
     }
   }
 

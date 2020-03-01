@@ -5,6 +5,7 @@ import java.awt.image.*;
 import java.io.*;
 import java.text.*;
 import java.util.*;
+import java.util.concurrent.atomic.*;
 import java.util.logging.*;
 
 import javax.imageio.*;
@@ -24,13 +25,13 @@ public class MapAlyzor {
   private static final Logger logger = Logger.getLogger(MapAlyzor.class.toString());
 
   public static void main(String args[]) {
-    // for (KaroMap map : KaroMap.getAll()) {
-    KaroMap map = KaroMap.get(10007);
-    try {
-      new MapAlyzor(map, 16).run();
-    } catch (Exception e) {
+    for (KaroMap map : KaroMap.getAll().select(m -> m.isActive())) {//
+      // KaroMap map = KaroMap.get(10007);
+      try {
+        new MapAlyzor(map, 8).run();
+      } catch (Exception e) {
+      }
     }
-    // }
     // KaroMap map = KaroMap.getMap(new File("./maps/Regenbogen-Boulevard.json"));
   }
 
@@ -87,15 +88,15 @@ public class MapAlyzor {
     }
 
     TSP tsp = new TSP(game, rule);
-    PathFinder pathfinder = new PathFinder(game, game.getNext(), rule, tsp);
+    PathFinder pathfinder = new PathFinder(game, game.getNext(), rule, tsp, new AtomicBoolean(false));
     Paths path = pathfinder.call();
 
     int minLength = path.getMinTotalLength();
     int minCount = path.getMovesOfRound(1).size();
     int startMoves = map.getTilesAsMoves(MapTile.START).size();
-    Map<Short, MutableCollection<Move>> wide = path.getWidestPaths();
+    Map<Integer, MutableCollection<Move>> wide = path.getWidestPaths();
     short minPathWidth = Short.MAX_VALUE;
-    for (short depth : new FastList<Short>(wide.keySet()).sortThis()) {
+    for (int depth : new FastList<Integer>(wide.keySet()).sortThis()) {
       int width = wide.get(depth).size();
       if (width < minPathWidth && depth < minLength) { // last move doesn't count as occupied
         minPathWidth = (short) width;
@@ -115,8 +116,8 @@ public class MapAlyzor {
     MutableList<Move> selectedStartMoves = paths.getMovesOfRound(1);
     short minCount = (short) selectedStartMoves.size();
     short minPathWidth = Short.MAX_VALUE;
-    Map<Short, MutableCollection<Move>> wide = paths.getWidestPaths();
-    Map<Short, MutableCollection<Move>> wideFull = Maps.mutable.empty();
+    Map<Integer, MutableCollection<Move>> wide = paths.getWidestPaths();
+    Map<Integer, MutableCollection<Move>> wideFull = Maps.mutable.empty();
 
     for (Move move : paths.getPartialMoves()) {
       MutableCollection<Move> lenMoves = wideFull.getOrDefault(move.getTotalLen(), new FastList<>());
@@ -129,7 +130,7 @@ public class MapAlyzor {
       return diffX != 0 ? diffX : m1.getY() - m2.getY();
     };
     StringBuilder analyzeMoves = new StringBuilder();
-    for (short depth : new FastList<Short>(wide.keySet()).sortThis()) {
+    for (int depth : new FastList<Integer>(wide.keySet()).sortThis()) {
       int width = wide.get(depth).size();
       analyzeMoves.append("Length: ").append(depth).append(", width: ").append(width).append(" positions: ")
           .append(wide.get(depth).toSortedList(posComparator)).append("\n");

@@ -54,7 +54,7 @@ public class MapPanel extends JPanel {
     };
   }
 
-  public KeyListener getMaxToursKeyListener() {
+  public KeyListener getTourLengthMarginKeyListener() {
     return new KeyListener() {
       @Override
       public void keyTyped(KeyEvent e) {
@@ -64,9 +64,9 @@ public class MapPanel extends JPanel {
       public void keyReleased(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_ENTER) {
           JTextField field = (JTextField) e.getSource();
-          String maxTours = field.getText();
-          if (maxTours != null) {
-            map.setMaxTours(Integer.valueOf(maxTours));
+          String tourLengthSafetyMargin = field.getText();
+          if (tourLengthSafetyMargin != null) {
+            map.setTourLengthSafetyMargin(Integer.valueOf(tourLengthSafetyMargin));
           }
         }
       }

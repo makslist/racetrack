@@ -69,7 +69,7 @@ public class NavigationPanel extends JPanel {
             g2d.fillOval(x2 - scale / 4, y2 - scale / 4, scale / 2, scale / 2);
             Font font = new Font(g2d.getFont().getFontName(), Font.PLAIN, 9);
             g2d.setFont(font);
-            g2d.drawString(Short.toString(move.getTotalLen()), (x2 + x1) / 2, (y2 + y1) / 2);
+            g2d.drawString(Integer.toString(move.getTotalLen()), (x2 + x1) / 2, (y2 + y1) / 2);
           }
         }
       }

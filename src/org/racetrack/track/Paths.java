@@ -76,7 +76,10 @@ public class Paths {
       comment = paths.comment;
     }
 
-    if (moves.isEmpty()) {
+    if (paths.isEmpty())
+      return;
+
+    if (isEmpty()) {
       moves.addAll(paths.getEndMoves());
     } else {
       int newMinimumLength = moves.withAll(paths.getEndMoves()).minBy(move -> move.getTotalLen()).getTotalLen();
@@ -219,8 +222,8 @@ public class Paths {
     return partialMoves;
   }
 
-  public Map<Short, MutableCollection<Move>> getWidestPaths() {
-    Map<Short, MutableCollection<Move>> map = new HashMap<>();
+  public Map<Integer, MutableCollection<Move>> getWidestPaths() {
+    Map<Integer, MutableCollection<Move>> map = new HashMap<>();
     for (Move move : getPartialMoves()) {
       MutableCollection<Move> depth = map.get(move.getTotalLen());
       if (depth == null) {

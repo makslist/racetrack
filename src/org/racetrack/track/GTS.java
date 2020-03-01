@@ -203,7 +203,7 @@ public class GTS implements Callable<GameAction> {
         MutableList<Move> movesNonBlocked = moves.reject(m -> state.isTaken(m));
         if (movesNonBlocked.isEmpty()) { // BLOCK
           Evaluation eval = play(playersToMove.reject(p -> p.equals(pl)), state, round, lastRound);
-          playerEvals.add(strategy.block(eval, pl, round));
+          playerEvals.add(strategy.block(eval, pl, round, game.getZzz()));
         } else {
 
           if (playersToMove.size() == 1) {
@@ -218,8 +218,10 @@ public class GTS implements Callable<GameAction> {
             playerEvals.add(strategy.evaluate(pl, new FastList<>(results).collect(t -> {
               try {
                 return t.get();
-              } catch (InterruptedException | ExecutionException e) {
+              } catch (ExecutionException e) {
                 logger.warning(e.getMessage());
+              } catch (InterruptedException e) {
+                results.forEach(ev -> ev.cancel(true));
               }
               return null;
             })));
