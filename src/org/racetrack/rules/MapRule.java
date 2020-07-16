@@ -132,13 +132,13 @@ public class MapRule {
    *          move. When checking for crossing e.g. grass this behavior is undesired and the cpRule should be disabled
    */
   private boolean isDrivenAcross(int x, int y, int xv, int yv, Collection<MapTile> tiles, boolean withCpRule) {
-    int x1 = x - xv;
-    int y1 = y - yv;
+    int xStart = x - xv;
+    int yStart = y - yv;
     int x0 = x;
     int y0 = y;
 
-    int incx = (int) Math.signum(-xv);
-    int incy = (int) Math.signum(-yv);
+    int incx = -(xv == 0 ? 0 : (xv > 0 ? 1 : -1));
+    int incy = -(yv == 0 ? 0 : (yv > 0 ? 1 : -1));
     int dx = Math.abs(xv);
     int dy = Math.abs(yv);
 
@@ -176,7 +176,7 @@ public class MapRule {
         return true;
       if (withCpRule && mapTile.isCpOrFinish())
         return false;
-      if (x0 == x1 && y0 == y1)
+      if (x0 == xStart && y0 == yStart)
         return false;
 
       if (err < 0) { // move in slow direction

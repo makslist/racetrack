@@ -4,7 +4,8 @@ import java.util.*;
 
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.impl.list.mutable.*;
-import org.json.*;
+
+import com.github.openjson.*;
 
 public class Decomp {
 

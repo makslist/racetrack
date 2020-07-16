@@ -12,7 +12,7 @@ public class CrashDetector {
   private static final int CRASH_DETECTOR_DEPTH = 12;
 
   public static boolean hasCrashHappend(Move move, int maxDepth) {
-    int depth = move.getTotalLen();
+    int depth = Integer.min(move.getTotalLen(), maxDepth);
     MutableCollection<Move> prevMoves = Paths.getCompleteLowerLevel(FastList.newListWith(move));
     while (!prevMoves.isEmpty() || depth > 0) {
       if (prevMoves.anySatisfy(previous -> previous.isCrash()))
@@ -25,7 +25,7 @@ public class CrashDetector {
   }
 
   private MapRule rule;
-  private int depth = CRASH_DETECTOR_DEPTH;
+  private int maxDepth = CRASH_DETECTOR_DEPTH;
   private Collection<Move> moves;
   private Boolean crashAhead;
 
@@ -35,13 +35,13 @@ public class CrashDetector {
   }
 
   public boolean isCrashAhead(Move move) {
-    return isCrashAhead() && move.getPathLen() < depth && !hasCrashHappend(move);
+    return isCrashAhead() && move.getPathLen() < maxDepth && !hasCrashHappend(move, maxDepth);
   }
 
   public boolean isCrashAhead() {
     if (crashAhead == null) {
       for (Move move : moves) {
-        if (isPathSafe(move, depth)) {
+        if (isPathSafe(move, maxDepth)) {
           crashAhead = false;
           return false;
         }
@@ -61,22 +61,6 @@ public class CrashDetector {
       }
       return false;
     }
-  }
-
-  private boolean hasCrashHappend(Move move) {
-    int depth = this.depth;
-    MutableCollection<Move> currentMoves = Paths.getCompleteLowerLevel(FastList.newListWith(move));
-    while (!currentMoves.isEmpty() || depth > 0) {
-      for (Move previous : currentMoves) {
-        if (previous.getPathLen() <= 0)
-          return false;
-        else if (previous.isCrash())
-          return true;
-      }
-      depth--;
-      currentMoves = Paths.getCompleteLowerLevel(currentMoves);
-    }
-    return false;
   }
 
 }

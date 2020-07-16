@@ -1,8 +1,8 @@
 package org.racetrack.track;
 
-import java.util.*;
+import java.time.*;
+import java.time.temporal.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
 import java.util.logging.*;
 
 import org.eclipse.collections.api.list.*;
@@ -21,6 +21,7 @@ public class MoveChooser extends ComparableTask<GameAction> {
 
   private Game game;
   private Player player;
+  private LocalDateTime executionEnd;
   private int maxExecutionTimeMinutes;
 
   private MutableMap<Player, Paths> paths = Maps.mutable.empty();
@@ -33,7 +34,7 @@ public class MoveChooser extends ComparableTask<GameAction> {
 
   @Override
   public GameAction call() {
-    Thread.currentThread().setName("MoveChooserThread");
+    Thread.currentThread().setName("MoveChooser");
     game.update();
     if (!game.isNextPlayer(player))
       return GameAction.notNext(game);
@@ -43,6 +44,8 @@ public class MoveChooser extends ComparableTask<GameAction> {
 
     ConsoleOutput.println(game.getId(), ("Map " + game.getMap().getId() + " - "
         + (game.getName().length() > 80 ? game.getName().substring(0, 80) : game.getName())));
+
+    executionEnd = LocalDateTime.now().plusMinutes(maxExecutionTimeMinutes);
 
     GameRule rule = RuleFactory.getInstance(game);
     MutableList<Move> possibles = rule.filterMoves(player.getPossibles());
@@ -57,19 +60,18 @@ public class MoveChooser extends ComparableTask<GameAction> {
     long duration = System.currentTimeMillis();
     int round = game.getCurrentRound();
 
-    AtomicBoolean isCanceled = new AtomicBoolean(false);
-    ExecutorService executor = Executors.newFixedThreadPool(Settings.getInstance().getMaxParallelTourThreads());
+    ExecutorService executor = Executors.newFixedThreadPool(Settings.getInstance().maxParallelTourThreads());
     TSP tsp = new TSP(game, rule);
-    Future<Paths> playerPathsFuture = executor.submit(new PathFinder(game, player, rule, tsp, isCanceled));
+    Future<Paths> playerPathsFuture = executor.submit(new PathFinder(game, player, rule, tsp));
     try {
-      paths.put(player, playerPathsFuture.get(maxExecutionTimeMinutes, TimeUnit.MINUTES));
+      paths.put(player, playerPathsFuture.get(timeLeftForExecutionSeconds(), TimeUnit.SECONDS));
     } catch (ExecutionException e) {
       logger.warning(e.getMessage());
       return GameAction.skipGame(game, "Exception when executing path finder. " + e.getMessage());
-    } catch (InterruptedException | TimeoutException e) {
+    } catch (TimeoutException | InterruptedException e) {
+      playerPathsFuture.cancel(true);
       return GameAction.skipGame(game, "Timeout or interrupt when getting path finder results.");
     } finally {
-      isCanceled.set(true);
       executor.shutdownNow();
     }
     Paths playerPaths = paths.get(player);
@@ -77,50 +79,56 @@ public class MoveChooser extends ComparableTask<GameAction> {
       return GameAction.skipGame(game, "Path for player " + player.getName() + " is empty");
 
     MutableList<Move> playerMoves = playerPaths.getMovesOfRound(round);
+    if (playerMoves.isEmpty())
+      return GameAction.skipGame(game, "No element found when getting max of playermoves");
+
     if (playerMoves.size() == 1) {
       ConsoleOutput.println(game.getId(), "Result: " + playerMoves.getFirst() + " with only one move. Duration "
           + ((System.currentTimeMillis() - duration) / 1000) + "s");
       return new GameAction(game, playerMoves.getFirst(), playerPaths.getMinLength() == 1, playerPaths.getComment());
     }
 
-    MutableList<Player> opponents = game.isStarted() ? game.getNearestPlayers(player, 2, 4)
+    MutableList<Move> filteredStartMoves = rule.filterStartMoves(possibles, playerMoves, round);
+    if (!filteredStartMoves.equals(playerMoves))
+      return new GameAction(game, filteredStartMoves.getFirst(), playerPaths.getMinLength() == 1,
+          playerPaths.getComment());
+
+    MutableList<Player> opponents = game.isStarted() ? game.getNearestPlayers(player, 3, 4)
         : (game.getMap().isCpClustered(MapTile.START) && game.getActivePlayersCount() <= 5
             ? game.getActivePlayers().reject(p -> player.equals(p))
             : Lists.mutable.empty());
 
     if (opponents.isEmpty()) {
-      try {
-        Move maxSucc = playerMoves.max((o1, o2) -> playerPaths.getSuccessors(round + 1, o1).size()
-            - playerPaths.getSuccessors(round + 1, o2).size());
-        ConsoleOutput.println(game.getId(), "Result: " + maxSucc + " with only one player. Duration "
-            + ((System.currentTimeMillis() - duration) / 1000) + "s");
-        return new GameAction(game, maxSucc, playerPaths.getMinLength() == 1, playerPaths.getComment());
-      } catch (NoSuchElementException nsee) {
-        return GameAction.skipGame(game, "No element found when getting max of playermoves");
-      }
+      Move maxSucc = playerMoves.max((o1, o2) -> playerPaths.getSuccessors(round + 1, o1).size()
+          - playerPaths.getSuccessors(round + 1, o2).size());
+      ConsoleOutput.println(game.getId(), "Result: " + maxSucc + " with only one player. Duration "
+          + ((System.currentTimeMillis() - duration) / 1000) + "s");
+      return new GameAction(game, maxSucc, playerPaths.getMinLength() == 1, playerPaths.getComment());
     } else {
-      ConsoleOutput.println(game.getId(), "Opponents: " + opponents);
-
-      executor = Executors.newFixedThreadPool(Settings.getInstance().getMaxParallelTourThreads());
+      executor = Executors.newFixedThreadPool(Settings.getInstance().maxParallelTourThreads());
       CompletionService<Paths> completionService = new ExecutorCompletionService<>(executor);
       MutableMap<Player, Future<Paths>> futurePaths = Maps.mutable.empty();
       for (Player pl : opponents) {
-        futurePaths.put(pl, completionService.submit(new PathFinder(game, pl, rule, tsp, isCanceled)));
+        futurePaths.put(pl, completionService.submit(new PathFinder(game, pl, rule, tsp)));
       }
 
+      executor.shutdown();
       try {
-        executorWaitForShutdown(executor);
-      } catch (InterruptedException e) {
+        if (!executor.awaitTermination(timeLeftForExecutionSeconds(), TimeUnit.SECONDS)) {
+          executor.shutdownNow();
+        }
+      } catch (InterruptedException ie) {
+        executor.shutdownNow();
         return GameAction.skipGame(game, "MoveChooser interrupted");
       }
       for (Player pl : futurePaths.keySet()) {
         Future<Paths> future = futurePaths.get(pl);
         try {
-          paths.put(pl, future.get(1, TimeUnit.SECONDS));
+          paths.put(pl, future.get());
         } catch (ExecutionException e) {
           logger.warning(e.getMessage());
           return GameAction.skipGame(game, "Exception when executing path finder");
-        } catch (InterruptedException | TimeoutException e) {
+        } catch (InterruptedException e) {
           return GameAction.skipGame(game, "Timeout when getting path finder results");
         }
       }
@@ -129,30 +137,21 @@ public class MoveChooser extends ComparableTask<GameAction> {
     executor = Executors.newFixedThreadPool(1);
     Future<GameAction> action = executor.submit(new GTS(game, paths, round));
     try {
-      executorWaitForShutdown(executor);
-    } catch (InterruptedException ie) {
-      return GameAction.skipGame(game, "Timeout during game tree search.");
-    }
-
-    try {
-      return action.get();
-    } catch (InterruptedException | ExecutionException ee) {
+      return action.get(timeLeftForExecutionSeconds(), TimeUnit.SECONDS);
+    } catch (ExecutionException ee) {
       return GameAction.skipGame(game, "Exception when getting game tree search result: " + ee.getMessage());
+    } catch (InterruptedException | TimeoutException e) {
+      return GameAction.skipGame(game, "Timeout during game tree search.");
     } finally {
+      action.cancel(true);
+      executor.shutdownNow();
       ConsoleOutput.println(game.getId(), ((System.currentTimeMillis() - duration) / 1000) + "s to calculate.");
     }
   }
 
-  private void executorWaitForShutdown(ExecutorService executor) throws InterruptedException {
-    executor.shutdown();
-    try {
-      if (!executor.awaitTermination(maxExecutionTimeMinutes, TimeUnit.MINUTES)) {
-        executor.shutdownNow();
-      }
-    } catch (InterruptedException ie) {
-      executor.shutdownNow();
-      throw ie;
-    }
+  private long timeLeftForExecutionSeconds() {
+    long timeLeft = ChronoUnit.SECONDS.between(LocalDateTime.now(), executionEnd);
+    return timeLeft > 0 ? timeLeft : 0l;
   }
 
   private boolean quitGame() {
@@ -167,11 +166,6 @@ public class MoveChooser extends ComparableTask<GameAction> {
     if (game.isCrashAllowed() && game.getZzz() >= 6)
       return true;
     if (game.isCrashAllowed() && game.isWithIq())
-      return true;
-
-    // quit iq-duel with humans
-    MutableList<Player> otherPlayers = game.getActivePlayers().reject(p -> p.equals(player));
-    if (game.isWithIq() && otherPlayers.size() == 1 && otherPlayers.noneSatisfy(p -> p.isBot()))
       return true;
 
     return false;

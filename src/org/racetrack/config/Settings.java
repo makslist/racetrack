@@ -7,7 +7,7 @@ public class Settings {
 
   public enum Property {
 
-    maxParallelTourThreads, user, password, secureConnection, withChat, withNewGames, useBetaApi, maxExecutionTimeMinutes, withMultiCrash
+    user, password, secureConnection, withChat, withNewGames, useBetaApi, gtsMaxStatesPerRound, maxExecutionTimeMinutes, maxParallelTourThreads, withMultiCrash
 
   }
 
@@ -15,12 +15,7 @@ public class Settings {
   private static Properties properties;
 
   public static Settings getInstance() {
-    if (settings == null) {
-      settings = new Settings();
-      File file = new File("settings.prop");
-      settings.load(file);
-    }
-    return settings;
+    return settings != null ? settings : Settings.getInstance(new File("settings.prop"));
   }
 
   public static Settings getInstance(File file) {
@@ -92,10 +87,14 @@ public class Settings {
     return useBetaApiString != null ? Boolean.valueOf(useBetaApiString) : false;
   }
 
-  public int getMaxParallelTourThreads() {
+  public int maxParallelTourThreads() {
     int maxThreads = getInt(Property.maxParallelTourThreads);
     int minThreads = Integer.min(maxThreads, Runtime.getRuntime().availableProcessors() - 1);
     return Integer.max(minThreads, 1);
+  }
+
+  public int gtsMaxStatesPerRound() {
+    return getInt(Property.gtsMaxStatesPerRound);
   }
 
   public int maxExecutionTimeMinutes() {

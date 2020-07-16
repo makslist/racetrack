@@ -76,45 +76,42 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
       processGame(game);
     }
 
-    // show bot as active in chat by updating chat-site
-    scheduler.scheduleWithFixedDelay(() -> {
-      if (withChat) {
+    if (withChat) {
+      // show bot as active in chat by updating chat-site
+      scheduler.scheduleWithFixedDelay(() -> {
         karo.updateChat();
-      }
-    }, 5, 55, TimeUnit.SECONDS);
+      }, 5, 55, TimeUnit.SECONDS);
 
-    scheduler.scheduleAtFixedRate(() -> {
-      System.out.println("checking for karokids.");
-      if (withChat) {
+      scheduler.scheduleAtFixedRate(() -> {
+        System.out.println("Checking for karokids.");
         for (User kid : User.getKaroKids()) {
           ChatResponse congratulation = chatbot.contratulate(kid, "wuensche karotag");
           if (congratulation.isAnswered()) {
             karo.chat(congratulation.getText());
           }
         }
-      }
-    }, computeDelayMinutes(6, 30), 24 * 60L, TimeUnit.MINUTES);
+      }, computeDelayMinutes(6, 30), 24 * 60L, TimeUnit.MINUTES);
+    }
 
     // creates games every day
     scheduler.scheduleAtFixedRate(() -> {
       if (withNewGames) {
-        Game random = Game.newRandom(null, userLogin, new Random().nextBoolean());
+        Game random = Game.newRandom(null, userLogin, true);
         karo.addGame(random);
 
-        Karolenderblatt blatt = Karolenderblatt.getToday();
-        String title = "!KaroIQ!lenderblatt: " + blatt.getLine();
-        Game karolenderGame = Game.newRandom(title, userLogin, false);
-        karo.addGame(karolenderGame);
+        // Karolenderblatt blatt = Karolenderblatt.getToday();
+        // String title = "!KaroIQ!lenderblatt: " + blatt.getLine();
+        // Game karolenderGame = Game.newRandom(title, userLogin, false);
+        // karo.addGame(karolenderGame);
       }
-    }, computeDelayMinutes(7, 0), 24 * 60L, TimeUnit.MINUTES);
+    }, computeDelayMinutes(7, 0), 2 * 24 * 60L, TimeUnit.MINUTES);
 
+    // process skipped games at night with longer duration
     scheduler.scheduleAtFixedRate(() -> {
       List<Integer> games = new ArrayList<Integer>(skipGames);
       skipGames.clear();
-      for (Integer gameId : games) {
-        moveFinder
-            .submit(new MoveChooser(Game.get(gameId), user, Settings.getInstance().maxExecutionTimeMinutes() * 4));
-      }
+      games.forEach(gameId -> moveFinder
+          .submit(new MoveChooser(Game.get(gameId), user, Settings.getInstance().maxExecutionTimeMinutes() * 4)));
     }, computeDelayMinutes(0, 30), 24 * 60L, TimeUnit.MINUTES);
 
     new Thread(websocketClient(), "WebSocketControl").start();
@@ -175,24 +172,20 @@ public class BotRunner implements Runnable, GameHandler, ChatHandler {
           karo.quitGame(game.getId());
         } else if (action.isCrash()) {
           karo.resetAfterCrash(game.getId());
-          processGame(game.update());
+          processGame(game);
         } else {
           Move move = action.getMove();
           if (move != null) {
+            ChatResponse answer = chatbot.respondInCar(game, move);
             try {
               if (action.hasComment()) {
                 karo.moveWithRadio(game.getId(), move, action.getComment());
+              } else if (withChat && answer.isText()) {
+                karo.moveWithRadio(game.getId(), move, answer.getText());
+              } else if (withChat && action.isFinishingMove() && game.getFinishedPlayer().isEmpty()) {
+                karo.moveWithRadio(game.getId(), move, Emoticon.GOLD.toString());
               } else {
-                ChatResponse answer = withChat ? chatbot.respondInCar(game, move) : ChatResponse.empty();
-                if (answer.isText()) {
-                  karo.moveWithRadio(game.getId(), move, answer.getText());
-                } else {
-                  if (action.isFinishingMove() && game.getFinishedPlayer().isEmpty()) {
-                    karo.moveWithRadio(game.getId(), move, Emoticon.GOLD.toString());
-                  } else {
-                    karo.move(game.getId(), move);
-                  }
-                }
+                karo.move(game.getId(), move);
               }
             } catch (PostingMoveFailedException e) {
               if (game.update().isNextPlayer(user.asPlayer())) {

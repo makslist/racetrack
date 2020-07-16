@@ -5,7 +5,7 @@ import java.awt.image.*;
 import java.io.*;
 import java.text.*;
 import java.util.*;
-import java.util.concurrent.atomic.*;
+import java.util.concurrent.*;
 import java.util.logging.*;
 
 import javax.imageio.*;
@@ -25,15 +25,15 @@ public class MapAlyzor {
   private static final Logger logger = Logger.getLogger(MapAlyzor.class.toString());
 
   public static void main(String args[]) {
-    for (KaroMap map : KaroMap.getAll().select(m -> m.isActive())) {//
-      // KaroMap map = KaroMap.get(10007);
-      try {
-        new MapAlyzor(map, 8).run();
-      } catch (Exception e) {
-      }
+    // for (KaroMap map : KaroMap.getAll().select(m -> m.isActive())) {//
+    KaroMap map = KaroMap.get(new File("./mapcache/8.json"));
+    // KaroMap map = KaroMap.get(10007);
+    try {
+      new MapAlyzor(map, 8).run();
+    } catch (Exception e) {
     }
-    // KaroMap map = KaroMap.getMap(new File("./maps/Regenbogen-Boulevard.json"));
   }
+  // }
 
   private NumberFormat numberFormatter;
 
@@ -61,6 +61,7 @@ public class MapAlyzor {
       }
     }
 
+    PathFinder.supressOutput();
     String filteredMapname = !map.getName().equals("") ? map.getName() : String.valueOf(map.getId());
     NumberFormat nf = new DecimalFormat("0000");
     String fileMapname = "./" + nf.format(map.getId()) + " - " + filteredMapname.replaceAll("[^a-zA-Z0-9.-]", "_");
@@ -88,8 +89,16 @@ public class MapAlyzor {
     }
 
     TSP tsp = new TSP(game, rule);
-    PathFinder pathfinder = new PathFinder(game, game.getNext(), rule, tsp, new AtomicBoolean(false));
-    Paths path = pathfinder.call();
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    PathFinder pathfinder = new PathFinder(game, game.getNext(), rule, tsp);
+    Future<Paths> futurePaths = executor.submit(pathfinder);
+    Paths path = null;
+    try {
+      path = futurePaths.get();
+    } catch (InterruptedException | ExecutionException e) {
+    } finally {
+      executor.shutdownNow();
+    }
 
     int minLength = path.getMinTotalLength();
     int minCount = path.getMovesOfRound(1).size();

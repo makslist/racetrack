@@ -2,13 +2,15 @@ package org.racetrack.track;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.*;
 import java.util.logging.*;
 
 import org.eclipse.collections.api.collection.*;
 import org.eclipse.collections.api.list.*;
+import org.eclipse.collections.api.map.primitive.*;
 import org.eclipse.collections.api.set.primitive.*;
+import org.eclipse.collections.impl.factory.primitive.*;
 import org.eclipse.collections.impl.list.mutable.*;
-import org.eclipse.collections.impl.multimap.set.*;
 import org.eclipse.collections.impl.set.mutable.primitive.*;
 import org.racetrack.config.*;
 import org.racetrack.karoapi.*;
@@ -22,9 +24,9 @@ public final class TSP {
 
   private Game game;
   private GameRule rule;
-  private SynchronizedPutUnifiedSetMultimap<MapTile, Edge> edges = new SynchronizedPutUnifiedSetMultimap<>();
 
-  private int maxExecutionTimeMinutes = Settings.getInstance().maxExecutionTimeMinutes();
+  private final ReadWriteLock edgeLengthLock = new SeqLock(false);
+  private MutableObjectIntMap<String> edgeLength = ObjectIntMaps.mutable.empty();
 
   public TSP(Game game, GameRule rule) {
     this.game = game;
@@ -50,24 +52,13 @@ public final class TSP {
     int minimumLength = tours.minTourLength;
     if (game.getMap().getSetting().getTourLengthSafetyMargin() > 0) { // depends on predefined rules for a specific map
       tours.trimMax(minimumLength + game.getMap().getSetting().getTourLengthSafetyMargin());
+    } else if (rule.isMapCircuit() || missingCps.size() <= 1 || game.getMap().areCpsClustered(missingCps)) {
+      tours.trimMax(minimumLength + 4);
     } else {
-      if (rule.isMapCircuit()) {
-        tours.trimMax(minimumLength + 4);
-      } else {
-        if (missingCps.size() <= 1 || game.getMap().areCpsClustered(missingCps)) {
-          tours.trimMax(minimumLength + 4);
-        } else {
-          tours.trimMax(minimumLength + 8);
-          int minDistToFinish = findEdgeLength(false, startMoves, MapTile.FINISH, crashDetector);
-          if (minDistToFinish > minimumLength) {
-            System.out.println("\nminDistFinish: " + minDistToFinish + " ; minimumLength: " + minimumLength);
-            if (minDistToFinish - minimumLength > 20) {
-              tours.trimMin(minimumLength + 10);
-            }
-          }
-        }
-      }
+      tours.trimMax(minimumLength + 4); // TODO
     }
+
+    // tours.printHistogram();
 
     return tours;
   }
@@ -75,77 +66,66 @@ public final class TSP {
   private TourStopover getStartTours(MutableCollection<Move> startMoves, MutableCollection<MapTile> missingCps,
       CrashDetector crashDetector) {
     TourStopover tours = TourStopover.start();
-    @SuppressWarnings("serial")
-    Collection<RecursiveTask<TourStopover>> nextStopTasks = ForkJoinTask
-        .invokeAll(missingCps.collect(nextCp -> new RecursiveTask<TourStopover>() {
-          @Override
-          protected TourStopover compute() {
-            return getTours(tours.addStop(nextCp, findEdgeLength(false, startMoves, nextCp, crashDetector)),
-                missingCps.reject(c -> c.equals(nextCp)));
-          }
-        }));
-    for (RecursiveTask<TourStopover> task : nextStopTasks) {
-      try {
-        TourStopover nextStop = task.get(maxExecutionTimeMinutes, TimeUnit.MINUTES);
-        if (nextStop.minTourLength < tours.minTourLength) {
-          tours.minTourLength = nextStop.minTourLength;
-        }
-      } catch (InterruptedException e) {
-      } catch (ExecutionException e) {
-        logger.severe(e.getMessage());
-      } catch (TimeoutException e) {
-        nextStopTasks.forEach(t -> t.cancel(true));
-        e.printStackTrace();
-      }
-    }
-    tours.next.sortThis((x1, x2) -> x1.totalLength - x2.totalLength);
+    ForkJoinPool executor = new ForkJoinPool();
+    MutableCollection<ForkJoinTask<TourStopover>> tasks = missingCps.collect(nextCp -> executor
+        .submit(getTours(tours.addStop(nextCp, findEdgeLength(false, startMoves, nextCp, crashDetector)),
+            missingCps.reject(c -> c.equals(nextCp)))));
+
+    tasks.forEach(t -> tours.setMin(t.join()));
+    executor.shutdownNow();
     return tours;
   }
 
-  private TourStopover getTours(TourStopover stop, MutableCollection<MapTile> missingCps) {
-    if (missingCps.isEmpty()) {
-      TourStopover finish = stop.addFinish(getCpDistance(stop.cp, MapTile.FINISH));
-      if (finish.minTourLength < stop.minTourLength) {
-        stop.minTourLength = finish.minTourLength;
-      }
-    } else {
+  private RecursiveTask<TourStopover> getTours(TourStopover stop, MutableCollection<MapTile> missingCps) {
+    return new RecursiveTask<TSP.TourStopover>() {
+      private static final long serialVersionUID = 1L;
 
-      @SuppressWarnings("serial")
-      Collection<RecursiveTask<TourStopover>> nextStopTasks = ForkJoinTask
-          .invokeAll(missingCps.collect(nextCp -> new RecursiveTask<TourStopover>() {
-            @Override
-            protected TourStopover compute() {
-              return getTours(stop.addStop(nextCp, getCpDistance(stop.cp, nextCp)),
-                  missingCps.reject(c -> c.equals(nextCp)));
-            }
-          }));
-      for (RecursiveTask<TourStopover> task : nextStopTasks) {
-        try {
-          TourStopover nextStop = task.get(maxExecutionTimeMinutes, TimeUnit.MINUTES);
-          if (nextStop.minTourLength < stop.minTourLength) {
-            stop.minTourLength = nextStop.minTourLength;
-          }
-        } catch (InterruptedException e) {
-        } catch (ExecutionException e) {
-          logger.severe(e.getMessage());
-        } catch (TimeoutException e) {
-          nextStopTasks.forEach(t -> t.cancel(true));
-          e.printStackTrace();
+      @Override
+      protected TourStopover compute() {
+        Thread.currentThread().setName("TSP from " + stop.cp + " to " + missingCps);
+
+        if (missingCps.isEmpty()) {
+          stop.setMin(stop.addFinish(getCpDistance(stop.prev, stop, MapTile.FINISH)));
+        } else {
+          MutableCollection<RecursiveTask<TourStopover>> tasks = missingCps
+              .collect(nextCp -> getTours(stop.addStop(nextCp, getCpDistance(stop.prev, stop, nextCp)),
+                  missingCps.reject(c -> c.equals(nextCp))));
+          tasks.forEach(t -> t.fork());
+          tasks.forEach(t -> stop.setMin(t.join()));
         }
+        return stop;
       }
-    }
-    stop.next.sortThis((x1, x2) -> x1.minTourLength - x2.minTourLength);
-    return stop;
+    };
   }
 
-  private int getCpDistance(MapTile fromCp, MapTile toCp) {
-    return edges.get(fromCp).detectIfNone(e -> e.connects(toCp), () -> {
-      int dist = findEdgeLength(true, game.getMap().getTilesAsMoves(fromCp), toCp, null);
-      Edge edge = new Edge(fromCp, toCp, dist);
-      edges.put(fromCp, edge);
-      edges.put(toCp, edge);
-      return edge;
-    }).dist;
+  private int getCpDistance(TourStopover prev, TourStopover from, MapTile toCp) {
+    String key = from.cp.compareTo(toCp) < 0 ? from.cp.name() + "/" + toCp.name() : toCp.name() + "/" + from.cp.name();
+    SeqLock.SeqReadLock lock = (SeqLock.SeqReadLock) edgeLengthLock.readLock();
+
+    try {
+      while (true) {
+        long counter = lock.tryReadLock();
+        Integer dist = edgeLength.getOrThrow(key);
+        if (lock.retryReadLock(counter)) {
+          // triangle-inequality
+          if (prev != null && !prev.isStart()) {
+            int directLength = getCpDistance(null, prev, toCp);
+            int startDist = getCpDistance(null, prev, from.cp);
+            return startDist + dist < directLength ? directLength - startDist : dist;
+          }
+          return dist;
+        }
+      }
+    } catch (IllegalStateException ise) {
+      int dist = findEdgeLength(true, game.getMap().getTilesAsMoves(from.cp), toCp, null);
+      edgeLengthLock.writeLock().lock();
+      int oldDist = edgeLength.getIfAbsentPut(key, dist);
+      if (oldDist != dist) {
+        edgeLength.put(key, Math.min(oldDist, dist));
+      }
+      edgeLengthLock.writeLock().unlock();
+      return dist;
+    }
   }
 
   private int findEdgeLength(boolean isFromCp, Collection<Move> startMoves, MapTile toCp, CrashDetector cD) {
@@ -179,7 +159,7 @@ public final class TSP {
     return Integer.MAX_VALUE;
   }
 
-  public static class TourStopover {
+  public static class TourStopover implements Comparable<TourStopover> {
 
     private static TourStopover start() {
       return new TourStopover(null, MapTile.START, 0);
@@ -189,7 +169,7 @@ public final class TSP {
     private MapTile cp;
     private int totalLength;
     private int minTourLength = Integer.MAX_VALUE;
-    private MutableList<TourStopover> next = new FastList<>();
+    private MutableList<TourStopover> next = new FastList<TourStopover>();
 
     private TourStopover(TourStopover prev, MapTile cp, int length) {
       this.prev = prev;
@@ -202,7 +182,7 @@ public final class TSP {
     }
 
     public MutableList<TourStopover> getNext() {
-      return next;
+      return next.sortThis();
     }
 
     private TourStopover addStop(MapTile cp, int length) {
@@ -218,6 +198,13 @@ public final class TSP {
       return finish;
     }
 
+    private void setMin(TourStopover stop) {
+      if (stop.minTourLength < minTourLength) {
+        minTourLength = stop.minTourLength;
+      }
+      next.sortThis();
+    }
+
     private void trimMax(int maxLength) {
       Iterator<TourStopover> it = next.iterator();
       while (it.hasNext()) {
@@ -230,29 +217,53 @@ public final class TSP {
       }
     }
 
-    private boolean trimMin(int minLength) {
-      Iterator<TourStopover> it = next.iterator();
-      while (it.hasNext()) {
-        TourStopover stop = it.next();
-        if (stop.cp.isFinish())
-          return stop.minTourLength < minLength;
-        else if (stop.trimMin(minLength)) {
-          it.remove();
-        }
-      }
-      Optional<TourStopover> minOptional = next.minOptional((t1, t2) -> t1.minTourLength - t2.minTourLength);
-      if (minOptional.isPresent()) {
-        minTourLength = minOptional.get().minTourLength;
-      }
-      return next.isEmpty();
-    }
-
     private int getStartLength() {
       return prev != null ? prev.getStartLength() : minTourLength;
     }
 
     public int size() {
       return next.isEmpty() ? 1 : (int) next.sumOfInt(x -> x.size());
+    }
+
+    public boolean isStart() {
+      return cp.isStart();
+    }
+
+    public boolean isFinish() {
+      return cp.isFinish();
+    }
+
+    public void printHistogram() {
+      int[] hist = getHist();
+      System.out.println("");
+      StringBuilder cols = new StringBuilder("| ");
+      StringBuilder count = new StringBuilder("| ");
+      for (int i = 0; i < hist.length; i++) {
+        if (hist[i] != 0) {
+          cols.append(+i + " | ");
+          count.append(hist[i] + " | ");
+        }
+      }
+      System.out.println(cols);
+      System.out.println(count);
+    }
+
+    private int[] getHist() {
+      if (next.isEmpty())
+        return new int[] { totalLength };
+
+      int[] hist = new int[256];
+      for (TourStopover stop : next) {
+        int[] hist2 = stop.getHist();
+        if (hist2.length == 1) {
+          hist[hist2[0]] += 1;
+        } else {
+          for (int i = 0; i < hist2.length; i++) {
+            hist[i] += hist2[i];
+          }
+        }
+      }
+      return hist;
     }
 
     public String getUnidealFactor() {
@@ -264,37 +275,9 @@ public final class TSP {
       return (prev != null ? prev.toString() + "," : "") + cp + "/" + minTourLength;
     }
 
-  }
-
-  private class Edge {
-    private MapTile cp1;
-    private MapTile cp2;
-    private int dist;
-
-    public Edge(MapTile cp1, MapTile cp2, int dist) {
-      this.cp1 = cp1;
-      this.cp2 = cp2;
-      this.dist = dist;
-    }
-
-    public boolean connects(MapTile cp) {
-      return cp1.equals(cp) || cp2.equals(cp);
-    }
-
     @Override
-    public boolean equals(Object obj) {
-      Edge edge = (Edge) obj;
-      return (cp1.equals(edge.cp1) && cp2.equals(edge.cp2)) || (cp1.equals(edge.cp2) && cp2.equals(edge.cp1));
-    }
-
-    @Override
-    public int hashCode() {
-      return cp1.hashCode() ^ cp2.hashCode();
-    }
-
-    @Override
-    public String toString() {
-      return new StringBuffer().append(cp1).append("/").append(cp2).toString();
+    public int compareTo(TourStopover o) {
+      return minTourLength - o.minTourLength;
     }
 
   }

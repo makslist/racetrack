@@ -1,6 +1,10 @@
-maxParallelGameThreads=3
 maxParallelTourThreads=4
 user=*username*
 password=*putpasswordhere*
 secureConnection=true
-withChat=true
+withChat=false
+withNewGames=false
+useBetaApi=false
+withMultiCrash=true
+maxExecutionTimeMinutes=10
+gtsMaxStatesPerRound=500000

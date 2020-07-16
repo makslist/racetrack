@@ -3,6 +3,7 @@ package org.racetrack.rules;
 import java.util.*;
 
 import org.eclipse.collections.api.block.predicate.*;
+import org.eclipse.collections.api.list.*;
 import org.racetrack.karoapi.*;
 import org.racetrack.track.*;
 
@@ -60,6 +61,10 @@ public class GameRule extends MapRule {
 
   public Paths filterPossibles(Paths possibles) {
     return possibles.filterPossibles(mapRule);
+  }
+
+  public MutableList<Move> filterStartMoves(MutableList<Move> possibles, MutableList<Move> playerMoves, int round) {
+    return playerMoves;
   }
 
 }

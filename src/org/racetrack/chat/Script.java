@@ -12,8 +12,9 @@ import org.eclipse.collections.api.map.*;
 import org.eclipse.collections.impl.factory.*;
 import org.eclipse.collections.impl.list.mutable.*;
 import org.eclipse.collections.impl.map.mutable.*;
-import org.json.*;
 import org.racetrack.*;
+
+import com.github.openjson.*;
 
 public class Script {
 
@@ -88,7 +89,7 @@ public class Script {
       JSONObject jsonScript = new JSONObject(script.toString());
       insert(jsonScript);
     } catch (JSONException je) {
-      logger.severe("JSON parsing error in file \"" + scriptFile.getName() + "\" at " + je.getMessage());
+      logger.warning("JSON parsing error in file \"" + scriptFile.getName() + "\" at " + je.getMessage());
     }
   }
 

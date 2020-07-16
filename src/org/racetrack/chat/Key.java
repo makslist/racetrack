@@ -2,7 +2,8 @@ package org.racetrack.chat;
 
 import org.eclipse.collections.api.list.*;
 import org.eclipse.collections.impl.list.mutable.*;
-import org.json.*;
+
+import com.github.openjson.*;
 
 public class Key implements Comparable<Key> {
 

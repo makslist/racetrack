@@ -30,6 +30,7 @@ public class GamePanel extends JLayeredPane {
       mapPanel = new MapPanel(map, scale);
 
       Player player = game.getPlayer(user);
+      PathFinder.supressOutput();
       PathFinder pathFinder = new PathFinder(game, player);
 
       navPanel = new NavigationPanel(pathFinder, scale);

@@ -68,6 +68,19 @@ public class Strategy {
       return predRating - playerRating;
     }
 
+    public Evaluation normalize() {
+      float sum = 0f;
+      for (float rating : ratings) {
+        sum += rating;
+      }
+      if (sum != 1f) {
+        for (int i = 0; i < ratings.length; i++) {
+          ratings[i] = sum != 0 ? ratings[i] / sum : 1f / ratings.length;
+        }
+      }
+      return this;
+    }
+
   }
 
   private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("##0.00");
@@ -118,7 +131,7 @@ public class Strategy {
       if (pos1 - pos2 != 0)
         return (pos1 - pos2) < 0 ? 1 : -1;
 
-      if (pos1 == 1) { // && pos2 == 1
+      if (pos1 == 1) {
         float leadDiff = o1.getLead(player) - o2.getLead(player);
         return leadDiff == 0 ? 0 : (leadDiff < 0 ? 1 : -1);
       } else {
@@ -131,9 +144,10 @@ public class Strategy {
   public Evaluation evaluate(Player pl, MutableCollection<Evaluation> evals) {
     if (evals.isEmpty())
       return null;
-    if (pl == player && type == Type.Offensive)
-      return evals.min(comp(players.get(leader)));
-    else if (pl != player && type == Type.Paranoid)
+    // if (pl == player && type == Type.Offensive)
+    // return evals.min(comp(players.get(leader)));
+    // else
+    if (pl != player && type == Type.Paranoid)
       return evals.min(comp(players.get(player)));
     else
       return evals.max(comp(players.get(pl)));
@@ -141,45 +155,39 @@ public class Strategy {
 
   public Evaluation merge(MutableList<Evaluation> values) {
     Evaluation avg = new Evaluation(players.size());
-    for (Evaluation value : values) {
-      for (int i = 0; i < avg.ratings.length; i++) {
+    for (int i = 0; i < avg.ratings.length; i++) {
+      for (Evaluation value : values) {
         avg.ratings[i] += value.ratings[i];
       }
     }
-    for (int i = 0; i < avg.ratings.length; i++) {
-      avg.ratings[i] /= values.size();
+    return avg.normalize();
+  }
+
+  public Evaluation maxDepth() {
+    Evaluation eval = new Evaluation(players.size());
+    for (Pair<Player, Integer> length : playerLength) {
+      eval.ratings[players.get(length.key)] = length.value == gamelength ? 1 : 0;
     }
-    return avg;
+    return eval.normalize();
   }
 
   public Evaluation gameEnd() {
     return new Evaluation(players.size());
   }
 
-  public Evaluation maxDepth() {
-    Evaluation eval = new Evaluation(players.size());
-    for (Pair<Player, Integer> length : playerLength) {
-      int roundsAfterLeader = length.value - gamelength;
-      eval.ratings[players.get(length.key)] = roundsAfterLeader == 0 ? 0 : -roundsAfterLeader;
-    }
+  public Evaluation finish(Player player, Evaluation eval) {
+    eval.ratings[players.get(player)] = 1;
     return eval;
   }
 
-  public Evaluation finish(Evaluation eval, Player player, int round) {
-    int roundsAfterLeader = round - gamelength;
-    eval.ratings[players.get(player)] = roundsAfterLeader == 0 ? 0 : -roundsAfterLeader;
-    return eval;
-  }
-
-  public Evaluation block(Evaluation eval, Player player, int round, int zzz) {
-    int blockInRoundsTillFinish = gamelength - round;
-    eval.ratings[players.get(player)] = blockInRoundsTillFinish <= 0 ? blockInRoundsTillFinish : (zzz + 1) * 1.5f;
+  public Evaluation block(Player player, Evaluation eval) {
+    eval.ratings[players.get(player)] = 0;
     return eval;
   }
 
   @Override
   public String toString() {
-    return type.name();
+    return type.name() + " " + players;
   }
 
 }

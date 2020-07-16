@@ -108,7 +108,7 @@ public class Paths {
     }
   }
 
-  public void mergePredecessors(MutableCollection<Move> curMoves) {
+  private void mergePredecessors(MutableCollection<Move> curMoves) {
     MutableList<Move> preds = new FastList<>();
     for (Move test : curMoves) {
       test.getPreds().reject(m -> preds.anySatisfy(p -> p == m), preds);
@@ -158,11 +158,6 @@ public class Paths {
     return moves.isEmpty() ? Short.MAX_VALUE : moves.minBy(move -> move.getTotalLen()).getTotalLen();
   }
 
-  public Paths getShortestTracks() {
-    int minLength = getMinTotalLength();
-    return Paths.onlyFiltered(this, moves.select(move -> move.getTotalLen() == minLength));
-  }
-
   /**
    * Changes the internal structure of the path by cutting single connections between moves and their predecessors which
    * are not on the path to a later crash-move.
@@ -170,7 +165,7 @@ public class Paths {
   public void trimCrashPaths() {
     MutableSet<Move> crashSuccesors = Sets.mutable.empty();
     for (int i = getMinTotalLength(); i > 0; i--) {
-      MutableList<Move> crashs = getCrashsOfRound(i);
+      MutableList<Move> crashs = getMovesOfRound(i + 1).flatCollect(m -> m.getCrashPredecessors());
       if (!crashs.isEmpty()) {
         crashSuccesors.addAll(crashs);
         for (Move crash : crashs) {
@@ -181,10 +176,6 @@ public class Paths {
         }
       }
     }
-  }
-
-  public MutableList<Move> getCrashsOfRound(int round) {
-    return getMovesOfRound(round + 1).flatCollect(m -> m.getCrashPredecessors());
   }
 
   public MutableList<Move> getMovesOfRound(int round) {
