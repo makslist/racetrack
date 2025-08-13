@@ -1,0 +1,10 @@
+{
+  "circuit": true,
+  "quitmodes": {
+    "noCps": false,
+    "cps": true,
+    "formula1": true,
+    "free": true
+  },
+  "id": 10049
+}

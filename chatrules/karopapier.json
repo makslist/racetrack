@@ -682,7 +682,7 @@
         {
           "pattern": "hast *",
           "reasemb": [
-            "Na klar. Lassuns loslegen!",
+            "Na klar. Lass uns loslegen!",
             "Immer!",
             "OK",
             "Gerne"
@@ -758,10 +758,9 @@
           "pattern": "wuensche karotag",
           "reasemb": [
             "Alles gute zum Karotag, #name!",
-            "Heute gibt es Grüngesichthopsen für #name :bouncy:",
-            "Karohüpftag bei #name! Glückwunsch!",
-            "Happy Hüpftag, #name",
-            "Herzlichen Glühstrumpf! :hurra:"
+            "Heute gibt es Grüngesichthopsen für #name! :bouncy:",
+            "Karohüpftag bei #name Glückwunsch!",
+            "Happy Hüpftag, #name!"
           ]
         },
         {

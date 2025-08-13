@@ -1,1 +1,9 @@
-{"quit":true,"id":117}
+{
+  "id": 117,
+  "quitmodes": {
+    "noCps": true,
+    "cps": true,
+    "formula1": true,
+    "free": true
+  }
+}

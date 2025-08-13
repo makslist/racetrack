@@ -1,0 +1,9 @@
+{
+  "id": 10059,
+  "quitmodes": {
+    "noCps": false,
+    "cps": false,
+    "formula1": false,
+    "free": false
+  }
+}

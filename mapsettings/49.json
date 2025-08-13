@@ -1,1 +1,10 @@
-{"circuit":false,"quit":true,"id":49}
+{
+  "circuit": false,
+  "id": 49,
+  "quitmodes": {
+    "noCps": false,
+    "cps": true,
+    "formula1": true,
+    "free": false
+  }
+}

@@ -1,1 +1,10 @@
-{"tourLengthSafetyMargin":6,"quit":true,"id":145}
+{
+  "tourLengthSafetyMargin": 3,
+  "id": 145,
+  "quitmodes": {
+    "noCps": false,
+    "cps": false,
+    "formula1": true,
+    "free": true
+  }
+}

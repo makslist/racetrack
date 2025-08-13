@@ -1,1 +1,4 @@
-{"tourLengthSafetyMargin":5,"id":10005}
+{
+  "tourLengthSafetyMargin": 3,
+  "id": 10005
+}

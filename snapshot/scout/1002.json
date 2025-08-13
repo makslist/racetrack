@@ -1,0 +1,17 @@
+{
+  "mapId": 1002,
+  "modes": [
+    {
+      "startDirection": "classic",
+      "cps": false,
+      "optimalStarts": 4,
+      "moveCount": 47
+    },
+    {
+      "startDirection": "classic",
+      "cps": true,
+      "optimalStarts": 4,
+      "moveCount": 47
+    }
+  ]
+}

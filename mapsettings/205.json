@@ -1,1 +1,5 @@
-{"circuit":false,"id":205}
+{
+  "tourLengthSafetyMargin": 1,
+  "circuit": false,
+  "id": 205
+}

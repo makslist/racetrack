@@ -1,0 +1,29 @@
+{
+  "modes": [
+    {
+      "startDirection": "classic",
+      "cps": false,
+      "optimalStarts": 0,
+      "moveCount": 32767
+    },
+    {
+      "startDirection": "classic",
+      "cps": true,
+      "optimalStarts": 0,
+      "moveCount": 32767
+    },
+    {
+      "startDirection": "formula1",
+      "cps": true,
+      "optimalStarts": 0,
+      "moveCount": 32767
+    },
+    {
+      "startDirection": "free",
+      "cps": true,
+      "optimalStarts": 0,
+      "moveCount": 32767
+    }
+  ],
+  "mapId": 12589
+}

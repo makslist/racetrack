@@ -1,0 +1,11 @@
+{
+  "mapId": 1003,
+  "modes": [
+    {
+      "startDirection": "classic",
+      "cps": false,
+      "optimalStarts": 6,
+      "moveCount": 13
+    }
+  ]
+}
